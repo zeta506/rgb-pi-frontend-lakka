@@ -8,7 +8,7 @@
 
 set -eu
 
-preset=480i-ntsc
+preset=240p-ntsc
 if [ "${1:-}" = '--preset' ]; then
     preset=$2
     shift 2

@@ -1,8 +1,8 @@
 # Windows PowerShell equivalent of apply.sh for flashing on Windows dev hosts.
 # Usage:
-#   .\apply-windows.ps1 -Preset 480i-ntsc -Flash E: -Storage F:
+#   .\apply-windows.ps1 -Preset 240p-ntsc -Flash E: -Storage F:
 param(
-    [string]$Preset  = "480i-ntsc",
+    [string]$Preset  = "240p-ntsc",
     [Parameter(Mandatory)][string]$Flash,
     [Parameter(Mandatory)][string]$Storage
 )

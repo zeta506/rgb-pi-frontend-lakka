@@ -37,8 +37,8 @@ RA_CFG="$RA_DIR/retroarch.cfg"
 [ -f "$RA_CFG" ] || touch "$RA_CFG"
 for kv in \
     'crt_switch_resolution = "1"' \
-    'crt_switch_resolution_super = "3840"' \
-    'crt_switch_hires_menu = "true"' \
+    'crt_switch_resolution_super = "2560"' \
+    'crt_switch_hires_menu = "false"' \
     'crt_switch_porch_adjust = "0"' \
     'crt_switch_center_adjust = "0"' \
     'crt_switch_vertical_adjust = "0"' \
@@ -57,12 +57,12 @@ do
     fi
 done
 
-# Per-core overrides for popular 480i arcade cores
+# Per-core overrides tuned for 240p mode (2560x240)
 mkdir -p "$RA_DIR/config/MAME"
 cat > "$RA_DIR/config/MAME/MAME.cfg" <<'CFG'
 aspect_ratio_index = "23"
-custom_viewport_width = "3840"
-custom_viewport_height = "480"
+custom_viewport_width = "2560"
+custom_viewport_height = "240"
 custom_viewport_x = "0"
 custom_viewport_y = "0"
 video_scale_integer = "false"
