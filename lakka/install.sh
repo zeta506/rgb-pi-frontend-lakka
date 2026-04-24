@@ -36,10 +36,17 @@ if ! command -v python3 >/dev/null 2>&1; then
 fi
 
 echo "[4/7] Pip install required libs into $DEST/python-libs"
-# Offline-friendly: attempt pip, fallback to manual extract
-python3 -m pip install --target "$DEST/python-libs" --no-warn-script-location \
-    pygame Pillow 2>&1 | tail -3 || \
-    echo "WARN: pip install failed (offline?). Ship wheels in install/wheels/ and rerun."
+# Offline-first: if bundled wheels present, install from them; else fallback online
+if ls "$SRC_DIR/lakka/wheels"/*.whl >/dev/null 2>&1; then
+    echo "      Installing bundled wheels (offline)"
+    python3 -m pip install --no-index --target "$DEST/python-libs" \
+        --no-warn-script-location "$SRC_DIR/lakka/wheels"/*.whl 2>&1 | tail -3
+else
+    echo "      No bundled wheels found; attempting online install"
+    python3 -m pip install --target "$DEST/python-libs" --no-warn-script-location \
+        pygame Pillow 2>&1 | tail -3 || \
+        echo "WARN: pip install failed. Re-run with lakka/wheels/*.whl present."
+fi
 
 echo "[5/7] Install systemd unit"
 mkdir -p "$SYSD"

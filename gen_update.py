@@ -2,42 +2,45 @@ import os
 import zipfile
 import datetime
 
-rgbpi       = '/opt/rgbpi/ui'
-temp        = '/opt/rgbpi/ui/temp'
+# Lakka-port: anchored to /storage/rgbpi
+RGBPI_ROOT  = '/storage/rgbpi'
+rgbpi       = RGBPI_ROOT
+temp        = RGBPI_ROOT + '/temp'
 # System folders
-data        = '/opt/rgbpi/ui/data'
-bck         = '/opt/rgbpi/ui/data/backup'
-bck_joy     = '/opt/rgbpi/ui/data/backup/joyconfig'
-joy_cfg     = '/opt/rgbpi/ui/data/joyconfig'
-remaps      = '/opt/rgbpi/ui/data/remaps'
-scraper     = '/opt/rgbpi/ui/data/scraper'
-scr_img     = '/opt/rgbpi/ui/data/scraper/images'
-fonts       = '/opt/rgbpi/ui/fonts'
-images      = '/opt/rgbpi/ui/images'
-sounds      = '/opt/rgbpi/ui/sounds'
-fx          = '/opt/rgbpi/ui/sounds/fx'
-music       = '/opt/rgbpi/ui/sounds/music'
-system      = '/opt/rgbpi/ui/system'
-themes      = '/opt/rgbpi/ui/themes'
-other       = '/opt/rgbpi/ui/other'
-retroarch   = '/opt/retroarch'
-cores       = '/opt/retroarch/cores'
+data        = RGBPI_ROOT + '/data'
+bck         = RGBPI_ROOT + '/data/backup'
+bck_joy     = RGBPI_ROOT + '/data/backup/joyconfig'
+joy_cfg     = RGBPI_ROOT + '/data/joyconfig'
+remaps      = RGBPI_ROOT + '/data/remaps'
+scraper     = RGBPI_ROOT + '/data/scraper'
+scr_img     = RGBPI_ROOT + '/data/scraper/images'
+fonts       = RGBPI_ROOT + '/fonts'
+images      = RGBPI_ROOT + '/images'
+sounds      = RGBPI_ROOT + '/sounds'
+fx          = RGBPI_ROOT + '/sounds/fx'
+music       = RGBPI_ROOT + '/sounds/music'
+system      = RGBPI_ROOT + '/system'
+themes      = RGBPI_ROOT + '/themes'
+other       = RGBPI_ROOT + '/other'
+# Lakka retroarch paths: binary + cores come from overlay mounts
+retroarch   = '/usr/bin/retroarch'
+cores       = '/tmp/cores'
 # Update folders
-tmp_data    = '/opt/rgbpi/ui/temp/data'
-tmp_bck     = '/opt/rgbpi/ui/temp/data/backup'
-tmp_bck_joy = '/opt/rgbpi/ui/temp/data/backup/joyconfig'
-tmp_joy_cfg = '/opt/rgbpi/ui/temp/data/joyconfig'
-tmp_remaps  = '/opt/rgbpi/ui/temp/data/remaps'
-tmp_scraper = '/opt/rgbpi/ui/temp/data/scraper'
-tmp_scr_img = '/opt/rgbpi/ui/temp/data/scraper/images'
-tmp_fonts   = '/opt/rgbpi/ui/temp/fonts'
-tmp_images  = '/opt/rgbpi/ui/temp/images'
-tmp_sounds  = '/opt/rgbpi/ui/temp/sounds'
-tmp_fx      = '/opt/rgbpi/ui/temp/sounds/fx'
-tmp_music   = '/opt/rgbpi/ui/temp/sounds/music'
-tmp_system  = '/opt/rgbpi/ui/temp/system'
-tmp_themes  = '/opt/rgbpi/ui/temp/themes'
-tmp_rarch   = '/opt/rgbpi/ui/temp/retroarch'
+tmp_data    = RGBPI_ROOT + '/temp/data'
+tmp_bck     = RGBPI_ROOT + '/temp/data/backup'
+tmp_bck_joy = RGBPI_ROOT + '/temp/data/backup/joyconfig'
+tmp_joy_cfg = RGBPI_ROOT + '/temp/data/joyconfig'
+tmp_remaps  = RGBPI_ROOT + '/temp/data/remaps'
+tmp_scraper = RGBPI_ROOT + '/temp/data/scraper'
+tmp_scr_img = RGBPI_ROOT + '/temp/data/scraper/images'
+tmp_fonts   = RGBPI_ROOT + '/temp/fonts'
+tmp_images  = RGBPI_ROOT + '/temp/images'
+tmp_sounds  = RGBPI_ROOT + '/temp/sounds'
+tmp_fx      = RGBPI_ROOT + '/temp/sounds/fx'
+tmp_music   = RGBPI_ROOT + '/temp/sounds/music'
+tmp_system  = RGBPI_ROOT + '/temp/system'
+tmp_themes  = RGBPI_ROOT + '/temp/themes'
+tmp_rarch   = RGBPI_ROOT + '/temp/retroarch'
 
 # Clean temp folder
 os.system('rm -rf ' + temp)
@@ -89,5 +92,5 @@ year = str(now.year)
 month = str(now.month).zfill(2)
 day = str(now.day).zfill(2)
 file_name = os_ver + '_' + os_int_ver + '_' + year + month + day + '.zip'
-os.chdir('/opt/rgbpi/ui/temp')
+os.chdir('/storage/rgbpi/temp')
 os.system('zip -r ' + file_name + ' .')

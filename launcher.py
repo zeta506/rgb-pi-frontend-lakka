@@ -538,9 +538,9 @@ def launch_content():
         # Set Fake LGun Color Replacement
         if cglobals.launcher['lgun_mode'] and rtk.cfg_lgun_color_rep == 'on':
             if rtk.cfg_flicker_reduction == 'on':
-                color_cmd = ' --set-shader /opt/rgbpi/ui/data/shaders/lgun_linear.glslp '
+                color_cmd = ' --set-shader /storage/rgbpi/data/shaders/lgun_linear.glslp '
             else:
-                color_cmd = ' --set-shader /opt/rgbpi/ui/data/shaders/lgun_nolinear.glslp '
+                color_cmd = ' --set-shader /storage/rgbpi/data/shaders/lgun_nolinear.glslp '
         else:
             color_cmd = ''
         # Get paths

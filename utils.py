@@ -294,7 +294,7 @@ def rotate_boot_images():
 
 def shutdown(reboot=False, save_cfg=False, manual_shutdown=False):
     # Print image in screen
-    cmd('python3 /opt/rgbpi/ui/framebuffer_write.pyc -img /opt/rgbpi/ui/images/powerdown_init.bmp')
+    cmd('python3 /storage/rgbpi/framebuffer_write.py -img /storage/rgbpi/images/powerdown_init.bmp')
     # Save dat files bck
     bck_dat_files()
     # Save current configuration
@@ -310,7 +310,7 @@ def shutdown(reboot=False, save_cfg=False, manual_shutdown=False):
     # Manual shutdown
     if manual_shutdown:
         cglobals.sound_mgr.stop_music()
-        cmd('python3 /opt/rgbpi/ui/framebuffer_write.pyc -img /opt/rgbpi/ui/images/unplug.bmp')
+        cmd('python3 /storage/rgbpi/framebuffer_write.py -img /storage/rgbpi/images/unplug.bmp')
         cmd('sync')
         cmd('umount -a')
         while True:
@@ -798,7 +798,12 @@ def copytree(src, dst):
             shutil.copyfile(s, d)
 
 def sys_update():
+    # Lakka-port: OTA server is RGB-Pi proprietary; disabled until
+    # a Lakka-specific update endpoint is wired up.
     try:
+        rtk.logging.info('sys_update: disabled on Lakka port')
+        rtk.notif_msg.display(text='no_update_server', l_icon='forbidden')
+        return
         url1 = 'https://' + rtk.url_webservices + '/sys_update.php'
         url2 = 'http://'  + rtk.url_webservices + '/sys_update.php'
         upd_info = ws_get_osversion(url1) or ws_get_osversion(url2)
@@ -2372,7 +2377,7 @@ def scan_games(do_scrap=True):
     except Exception as error:
         rtk.error_msg.display(title='error_title',text='Error scanning roms: ' + str(error))
         rtk.logging.error('Error scanning roms (data_source = %s): %s', rtk.cfg_data_source, error)
-        cmd('ls -R '+ cglobals.mount_point + '/roms > /opt/rgbpi/ui/logs/rom_list.log')
+        cmd('ls -R '+ cglobals.mount_point + '/roms > /storage/rgbpi/logs/rom_list.log')
 
 def get_subsystem(path, system, subsystems):
     subsystem = None

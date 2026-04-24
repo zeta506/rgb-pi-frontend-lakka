@@ -46,7 +46,7 @@ from sel_handheld_mode_view import Sel_Handheld_Mode_View
 from info_keys_view import Info_Keys_View
 from lgun_cfg_view import Lgun_Cfg_View
 
-os.chdir('/opt/rgbpi/ui')
+os.chdir('/storage/rgbpi')
 
 boot_img_2 = pygame.image.load(rtk.path_rgbpi_images + '/boot_2.bmp').convert()
 boot_img_3 = pygame.image.load(rtk.path_rgbpi_images + '/boot_3.bmp').convert()
