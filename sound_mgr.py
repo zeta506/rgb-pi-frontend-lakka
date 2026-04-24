@@ -40,28 +40,49 @@ class Sound_Manager(object):
                 self.fx_shoot = pygame.mixer.Sound(rtk.path_rgbpi_sfx + '/shoot.ogg')
 
     def init_mixer(self):
+        # Lakka-port: pygame.mixer first (must succeed) then alsaaudio mixers
+        # are best-effort. Card 1 = first USB audio device on Lakka with nohdmi.
+        self.mixer_range = [0, 100]
+        self.dynamic_range = 50
+        # Pi5 Lakka: bind ALSA to card 1 (USB DAC) explicitly via SDL env.
+        os.environ.setdefault('SDL_AUDIODRIVER', 'alsa')
+        os.environ.setdefault('AUDIODEV', 'hw:1,0')
         try:
-            self.mixer_range = [0,100]
-            self.dynamic_range = 50
-            # Init sound device and output
-            utils.cmd('amixer -c 0 cset numid=2 1')
-            self.headphone_mixer = alsaaudio.Mixer(control='Headphone',cardindex=0)
-            self.eq_mixer_0 = alsaaudio.Mixer(control='00. 31 Hz',device='equal')
-            self.eq_mixer_1 = alsaaudio.Mixer(control='01. 63 Hz',device='equal')
-            self.eq_mixer_2 = alsaaudio.Mixer(control='02. 125 Hz',device='equal')
-            self.eq_mixer_3 = alsaaudio.Mixer(control='03. 250 Hz',device='equal')
-            self.eq_mixer_4 = alsaaudio.Mixer(control='04. 500 Hz',device='equal')
-            self.eq_mixer_5 = alsaaudio.Mixer(control='05. 1 kHz',device='equal')
-            self.eq_mixer_6 = alsaaudio.Mixer(control='06. 2 kHz',device='equal')
-            self.eq_mixer_7 = alsaaudio.Mixer(control='07. 4 kHz',device='equal')
-            self.eq_mixer_8 = alsaaudio.Mixer(control='08. 8 kHz',device='equal')
-            self.eq_mixer_9 = alsaaudio.Mixer(control='09. 16 kHz',device='equal')
-            self.set_volume(percent=rtk.cfg_system_vol,mixer='headphone', control=0)
-            # Init Pygame SDL Mixer
-            pygame.mixer.init(frequency=22050, size=-16, channels=1, buffer=1024)
-        except:
-            rtk.logging.error('Audio device is not available!')
+            pygame.mixer.pre_init(frequency=44100, size=-16, channels=2, buffer=512)
+            pygame.mixer.init()
+            rtk.logging.info('pygame.mixer init: %s', pygame.mixer.get_init())
+        except Exception as e:
+            rtk.logging.error('pygame.mixer init failed: %s', e)
             cglobals.has_audio = False
+            return
+        # alsaaudio Mixers are nice-to-have; on Lakka many of these controls
+        # don't exist (no Headphone/equal cards). Stay silent if missing so
+        # the FE doesn't disable audio entirely.
+        try:
+            utils.cmd('amixer -c 1 sset Speaker 100% unmute >/dev/null 2>&1')
+        except Exception:
+            pass
+        for attr, ctrl, kwargs in (
+            ('headphone_mixer', 'Speaker', {'cardindex': 1}),
+            ('eq_mixer_0', '00. 31 Hz', {'device': 'equal'}),
+            ('eq_mixer_1', '01. 63 Hz', {'device': 'equal'}),
+            ('eq_mixer_2', '02. 125 Hz', {'device': 'equal'}),
+            ('eq_mixer_3', '03. 250 Hz', {'device': 'equal'}),
+            ('eq_mixer_4', '04. 500 Hz', {'device': 'equal'}),
+            ('eq_mixer_5', '05. 1 kHz', {'device': 'equal'}),
+            ('eq_mixer_6', '06. 2 kHz', {'device': 'equal'}),
+            ('eq_mixer_7', '07. 4 kHz', {'device': 'equal'}),
+            ('eq_mixer_8', '08. 8 kHz', {'device': 'equal'}),
+            ('eq_mixer_9', '09. 16 kHz', {'device': 'equal'}),
+        ):
+            try:
+                setattr(self, attr, alsaaudio.Mixer(control=ctrl, **kwargs))
+            except Exception:
+                setattr(self, attr, None)
+        try:
+            self.set_volume(percent=rtk.cfg_system_vol, mixer='headphone', control=0)
+        except Exception:
+            pass
 
     def set_playlist(self):
         self.playlist = utils.get_songs(name=rtk.cfg_playlist)
@@ -176,11 +197,16 @@ class Sound_Manager(object):
             v = vol(self.dynamic_range, p)
             a,b = self.mixer_range
             volume = int(a*(1-v)+b*v)
-            if mixer == 'headphone':
-                self.headphone_mixer.setvolume(volume)
-            elif mixer == 'equal':
-                eq_mixer = eval('self.eq_mixer_' + str(control))
-                eq_mixer.setvolume(int(percent))
+            try:
+                if mixer == 'headphone':
+                    if self.headphone_mixer:
+                        self.headphone_mixer.setvolume(volume)
+                elif mixer == 'equal':
+                    eq_mixer = getattr(self, 'eq_mixer_%s' % control, None)
+                    if eq_mixer:
+                        eq_mixer.setvolume(int(percent))
+            except Exception as e:
+                rtk.logging.debug('set_volume(%s,%s,%s) ignored: %s', percent, mixer, control, e)
 
     def vol_down(self):
         if cglobals.has_audio:

@@ -1,3 +1,5 @@
+import os
+
 # Dynares -> Lakka CRT switchres translation layer
 # Replaces RGB-Pi OS's custom `dynares_*` RetroArch keys with stock
 # `crt_switch_*` keys that vanilla RA + switchres.ini understand.
@@ -34,9 +36,15 @@ SUPER_WIDTH = {
 
 def write_switchres_ini(path, crt_type='generic_15', super_width='3840'):
     """Emit stock switchres.ini consumed by RA when crt_switch_resolution>=1"""
-    with open(path, 'w') as f:
-        f.write('monitor   custom\n')
-        f.write('crt_range0  ' + CRT_RANGES.get(crt_type, CRT_RANGES['generic_15']) + '\n')
+    data = 'monitor   custom\n'
+    data += 'crt_range0  ' + CRT_RANGES.get(crt_type, CRT_RANGES['generic_15']) + '\n'
+    for target in (path, '/storage/.config/retroarch/switchres.ini'):
+        try:
+            os.makedirs(os.path.dirname(target), exist_ok=True)
+            with open(target, 'w') as f:
+                f.write(data)
+        except OSError:
+            pass
 
 def apply_crt_settings(config, cfg_crt_type, cfg_dynares, cfg_overscan,
                        cfg_video_info, cfg_flicker_reduction):

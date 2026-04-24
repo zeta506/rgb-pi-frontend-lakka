@@ -1604,64 +1604,73 @@ def get_server_info():
             rtk.logging.error('Error scanning local network: %s', error)
 
 def set_wifi_config():
-    ssid = str(rtk.cfg_wifi_ssid)
-    pwd = rtk.cfg_wifi_pwd
-    country = rtk.cfg_wifi_country
-    line_0_default = 'country=' + country
-    line_1_default = 'ctrl_interface=DIR=/var/run/wpa_supplicant GROUP=netdev'
-    line_2_default = 'update_config=1'
-    ssid_fix = ssid
-    ssid_fix = ssid_fix.replace(" ","\ ")
-    ssid_fix = ssid_fix.replace("'","\xE2\x80\x99")
-    pwd_fix = pwd
-    pwd_fix = pwd_fix.replace(" ","\ ")
-    pwd_fix = pwd_fix.replace("'","\xE2\x80\x99")
-    p = subprocess.Popen("wpa_passphrase " + ssid_fix + " " + pwd_fix, stdout=subprocess.PIPE, shell=True)
-    (output, err) = p.communicate()
-    p.wait()
-    output = output.decode('utf-8')
-    # If SSID exists write valid wifi configuration
-    if 'network={' in output:
-        with open(rtk.path_wpa_supplicant + "/wpa_supplicant.conf", "w", encoding='utf-8') as myfile:
-            myfile.write(line_0_default + '\n')
-            myfile.write(line_1_default + '\n')
-            myfile.write(line_2_default + '\n')
-            myfile.write(output)
-    # If SSID write empty configuration to allow disconecting when writting non valid SSID or Password
-    else:
-        with open(rtk.path_wpa_supplicant + "/wpa_supplicant.conf", "w", encoding='utf-8') as myfile:
-            myfile.write(line_0_default + '\n')
-            myfile.write(line_1_default + '\n')
-            myfile.write(line_2_default + '\n')
-    cmd('wpa_cli -i wlan0 reconfigure')
+    """Lakka-port: write ConnMan config; never run wpa_passphrase / wpa_cli /
+    ifconfig — those break Lakka and kill SSH on wlan0."""
+    ssid = str(rtk.cfg_wifi_ssid).strip()
+    pwd = str(rtk.cfg_wifi_pwd or '').strip()
+    if not ssid:
+        rtk.logging.info('set_wifi_config: empty SSID, skipping')
+        return
+    cm_dir = '/storage/.cache/connman'
+    os.makedirs(cm_dir, exist_ok=True)
+    ssid_hex = ''.join('%02x' % b for b in ssid.encode('utf-8'))
+    cfg = (
+        '[global]\n'
+        'Name = wifi\n'
+        'Description = wifi seeded by rgbpi-lakka\n\n'
+        '[service_wifi]\n'
+        'Type = wifi\n'
+        'Security = psk\n'
+        'Name = ' + ssid + '\n'
+        'SSID = ' + ssid_hex + '\n'
+        'Passphrase = ' + pwd + '\n'
+        'IPv4 = dhcp\n'
+        'Nameservers = 1.1.1.1,8.8.8.8\n'
+    )
+    try:
+        with open(cm_dir + '/wifi.config', 'w', encoding='utf-8') as f:
+            f.write(cfg)
+        os.chmod(cm_dir + '/wifi.config', 0o600)
+        # Ask connman to re-read configs without bouncing wlan0 (keeps SSH alive)
+        cmd('connmanctl scan wifi >/dev/null 2>&1; true')
+    except Exception as e:
+        rtk.logging.error('set_wifi_config (Lakka): %s', e)
 
 def wifi_connect():
-    cmd('rfkill unblock wifi')
-    cmd('ifconfig wlan0 up')
+    """Lakka-port: no-op. ConnMan already manages wlan0; touching ifconfig
+    would drop SSH."""
     cglobals.is_connecting = True
+    rtk.logging.info('wifi_connect: no-op (ConnMan handles wlan0)')
 
 def wifi_disconnect():
-    cmd('ifconfig wlan0 down')
+    """Lakka-port: no-op for the same reason as wifi_connect()."""
     cglobals.is_connecting = False
+    rtk.logging.info('wifi_disconnect: no-op (would kill SSH)')
 
 def scan_wifi():
-    if rtk.cfg_wifi == 'off':
-        wifi_connect()
-    ssids = None
-    start_time = time.time()
-    while not ssids and time.time() - start_time < 10:
-        p = subprocess.Popen('iw dev wlan0 scan | grep SSID', stdout=subprocess.PIPE, shell=True)
-        (output, err) = p.communicate()
+    """Lakka-port: query connmanctl instead of iw scan."""
+    ssids = []
+    try:
+        p = subprocess.Popen('connmanctl scan wifi >/dev/null; connmanctl services',
+                             stdout=subprocess.PIPE, shell=True)
+        (output, _err) = p.communicate(timeout=15)
         p.wait()
-        ssids = output.decode('utf-8')
-    ssids = ssids.split('\n')
-    ssids = [ssid.replace('SSID: ','').strip() for ssid in ssids if ssid and '* SSID List' not in ssid and 'SSID: \\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00' not in ssid]
-    ssids = list(dict.fromkeys(ssids)) # Remove duplicates
-    if rtk.cfg_wifi == 'off':
-        wifi_disconnect()
-    cglobals.sys_opt_wifi_view.set_wifi_names(ssids)
-    cglobals.sys_opt_wifi_view.refresh_values()
-    rtk.popup_msg.hide()
+        for line in output.decode('utf-8', errors='ignore').split('\n'):
+            line = line.strip()
+            if not line or line.startswith('*'):
+                # connmanctl prefixes connected service with '*A'/'*R'; strip
+                line = line.lstrip('*ARO ').strip()
+            parts = line.split()
+            if parts and parts[0] != 'wifi_':
+                ssids.append(parts[0])
+    except Exception as e:
+        rtk.logging.error('scan_wifi: %s', e)
+    ssids = list(dict.fromkeys(s for s in ssids if s))
+    if hasattr(cglobals, 'sys_opt_wifi_view') and cglobals.sys_opt_wifi_view:
+        cglobals.sys_opt_wifi_view.set_wifi_names(ssids)
+        cglobals.sys_opt_wifi_view.refresh_values()
+    if hasattr(rtk, 'popup_msg'):
+        rtk.popup_msg.hide()
     cglobals.is_in_task = False
 
 def is_local_nfs():
@@ -1685,16 +1694,30 @@ def is_local_nfs():
 def init_rgbpi():
     check_01 = False
     check_02 = True # For future use
-    config_file = '/boot/config.txt'
+    config_file = '/flash/config.txt' if os.path.isfile('/flash/config.txt') else '/boot/config.txt'
     config_overlay_01 = 'dtoverlay=vc4-vga666,mode6\n'
-    with open(config_file, 'r', encoding='utf-8') as file:
-        for line in file:
-            if line == config_overlay_01:
+    lakka_dpi_overlay = 'dtoverlay=vc4-kms-dpi-generic'
+    try:
+        with open(config_file, 'r', encoding='utf-8') as file:
+            for line in file:
+                if line == config_overlay_01 or line.strip() == lakka_dpi_overlay:
+                    check_01 = True
+    except OSError:
+        check_01 = False
+    if check_01 and check_02:
+        cglobals.is_rgbpi = True
+    # Lakka/RetroTINK uses vc4-kms-dpi-generic, not the RGB-Pi OS VGA666
+    # overlay. Treat a valid DPI config as compatible and skip raspi-gpio if
+    # the tool is not present.
+    if not check_01 and os.path.isfile('/flash/config.txt'):
+        with open('/flash/config.txt', 'r', encoding='utf-8') as file:
+            if 'vc4-kms-dpi-generic' in file.read():
                 check_01 = True
     if check_01 and check_02:
         cglobals.is_rgbpi = True
-    # Restore 1 bit color lost when i2c is enabled via dtparam=i2c_*=on
-    cmd('raspi-gpio set 4 a2')
+    if os.path.exists('/usr/bin/raspi-gpio') or os.path.exists('/bin/raspi-gpio'):
+        # Restore 1 bit color lost when i2c is enabled via dtparam=i2c_*=on.
+        cmd('raspi-gpio set 4 a2')
 
 def init_jamma():
     # Disable driver manually > modprobe -r joypi
@@ -1720,6 +1743,9 @@ def disable_jamma():
         rtk.logging.info('Error releasing JAMMA in i2c-0!')
 
 def check_native_csync_support():
+    if not (os.path.exists('/usr/bin/raspi-gpio') or os.path.exists('/bin/raspi-gpio')):
+        cglobals.has_native_csync_support = False
+        return
     p = subprocess.Popen('raspi-gpio get 10', stdout=subprocess.PIPE, shell=True)
     (output, err) = p.communicate()
     p.wait()

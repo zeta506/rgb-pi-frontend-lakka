@@ -468,7 +468,7 @@ def draw_custom_sprites(time_step, is_tate=False):
 
 def render():
     try:
-        global screen, screen_tate
+        global screen, screen_tate, fb_presenter
         if cfg_ui_rotation == 'rotate_ccw':
             all_sprites.draw(screen_tate)
             scr_tate = pygame.transform.rotate(screen_tate, 90)
@@ -483,6 +483,8 @@ def render():
             screen.blit(scr, (0, 0))
         else:
             all_sprites.draw(screen)
+        if fb_presenter:
+            fb_presenter.present()
         pygame.display.update() # Removed rects to allow proper rotation
         clock.tick(fps) # Removing the framerate makes vsync adjust to the same monitor freq
     except Exception as error:
@@ -2575,15 +2577,34 @@ def load_theme(name, is_tate):
 
 # Pygame
 def init_video():
-    global screen, screen_tate
-    pygame.display.init()
+    global screen, screen_tate, fb_presenter
+    fb_presenter = None
+    try:
+        pygame.display.init()
+    except pygame.error:
+        os.environ['SDL_VIDEODRIVER'] = 'dummy'
+        pygame.display.quit()
+        pygame.display.init()
     pygame.mouse.set_visible(0)
     pygame.key.set_repeat() # (delay, interval)
     #screen = pygame.display.set_mode((scr_w, scr_h), pygame.SCALED)
     #screen = pygame.display.set_mode((scr_w, scr_h), pygame.HWSURFACE | pygame.DOUBLEBUF | pygame.FULLSCREEN)
-    screen = pygame.display.set_mode((scr_w, scr_h), pygame.FULLSCREEN)
-    screen_tate = pygame.Surface((scr_h, scr_w)).convert()
+    display_surface = pygame.display.set_mode((scr_w, scr_h))
     display_driver = pygame.display.get_driver()
+    if display_driver in ('dummy', 'offscreen'):
+        # SDL dummy may ignore the requested 320x240 size and expose the
+        # 3840x240 fbdev mode. Keep RGB-Pi's logical canvas fixed at 320x240,
+        # then mirror it explicitly to /dev/fb0.
+        screen = pygame.Surface((scr_w, scr_h)).convert()
+    else:
+        screen = display_surface
+    screen_tate = pygame.Surface((scr_h, scr_w)).convert()
+    if display_driver in ('dummy', 'offscreen'):
+        try:
+            import lakka_fbdisplay
+            fb_presenter = lakka_fbdisplay.install(pygame, screen)
+        except Exception as error:
+            logging.warning('Framebuffer presenter unavailable: %s', error)
     display_info = get_display_inf()
     logging.debug('Init video. Driver: %s, Info: %s', display_driver, display_info)
     os.system('clear')

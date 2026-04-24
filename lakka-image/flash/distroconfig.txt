@@ -15,13 +15,14 @@ disable_splash=1
 dtparam=audio=on
 
 # -------- CRT-DPI-BEGIN --------
-# 2560x240p NTSC superres via RetroTINK Ultimate VGA888 DAC (52 MHz pclk).
+# 3840x240p NTSC superx via RetroTINK Ultimate VGA888 DAC (81 MHz pclk).
+# Higher pixel clock smears HAT DAC glitches via analog bandwidth.
 # Replace this block with any presets/*.txt via apply.sh --preset.
 dtoverlay=vc4-kms-dpi-generic
 dtparam=rgb888
-dtparam=clock-frequency=52332342
-dtparam=hactive=2560,hfp=202,hsync=227,hbp=337
-dtparam=vactive=240,vfp=3,vsync=5,vbp=14
+dtparam=clock-frequency=81000000
+dtparam=hactive=3840,hfp=336,hsync=372,hbp=600
+dtparam=vactive=240,vfp=8,vsync=6,vbp=8
 dtparam=hsync-invert,vsync-invert
 # -------- CRT-DPI-END --------
 

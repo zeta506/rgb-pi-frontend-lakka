@@ -244,7 +244,11 @@ class Input_Manager:
         '''
         joysticks = []
         # Get udev joysticks information
-        for device in pyudev.Context().list_devices(subsystem='input'):
+        try:
+            devices = pyudev.Context().list_devices(subsystem='input')
+        except Exception:
+            devices = []
+        for device in devices:
             joystick = {}
             is_joystick = '/dev/input/js' in device.get('DEVNAME','None')
             if is_joystick:
@@ -256,6 +260,54 @@ class Input_Manager:
                 if joystick['path_id'] == 'platform-soc': # Workaround to force BT sorting first or last
                     joystick['path_id'] = 'bt-platform-soc'
                 joysticks.append(joystick)
+        if not joysticks:
+            # Lakka fallback: pyudev stub returned nothing, use sysfs to read
+            # real VID/PID + pygame.joystick for SDL index. Lets joy_cfg match
+            # specific controller maps.
+            import glob, os as _os
+            pygame.joystick.quit()
+            pygame.joystick.init()
+            for i in range(pygame.joystick.get_count()):
+                joy = pygame.joystick.Joystick(i)
+                try:
+                    joy.init()
+                    name = joy.get_name()
+                except Exception:
+                    name = 'Controller %s' % i
+                # init_joysticks calls int(vendor_id, 16) and int(product_id, 16),
+                # so leave raw hex strings here ('0079', '0126', ...)
+                vid = '1234'
+                pid = '1234'
+                try:
+                    # Walk up sysfs until idVendor appears (skips usb interface)
+                    js_path = _os.path.realpath('/sys/class/input/js%s' % i)
+                    cur = js_path
+                    for _ in range(8):
+                        if _os.path.isfile(cur + '/idVendor') and _os.path.isfile(cur + '/idProduct'):
+                            with open(cur + '/idVendor') as _f:
+                                vid = _f.read().strip()
+                            with open(cur + '/idProduct') as _f:
+                                pid = _f.read().strip()
+                            break
+                        cur = _os.path.dirname(cur)
+                except Exception:
+                    for usb in glob.glob('/sys/bus/usb/devices/*/idVendor'):
+                        try:
+                            with open(usb) as _f:
+                                vid = _f.read().strip()
+                            with open(_os.path.dirname(usb)+'/idProduct') as _f:
+                                pid = _f.read().strip()
+                            break
+                        except Exception:
+                            pass
+                joysticks.append({
+                    'name': name,
+                    'dev_name': '/dev/input/js%s' % i,
+                    'product_id': pid,
+                    'vendor_id': vid,
+                    'path_id': 'pygame',
+                    'index': i,
+                })
         # Removed sorting used in Retroarch > 1.9.8. Now it uses Linux bus standard ordering (BT at the end and Pi4 USB port numbering)
         joys_sorted_by_name = sorted(joysticks, key=lambda joystick:(joystick['dev_name'], joystick['path_id']), reverse=False)
         for i, joy in enumerate(joys_sorted_by_name):

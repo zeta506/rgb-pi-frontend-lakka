@@ -17,6 +17,8 @@ mkdir -p "$DEST" "$DEST/data" "$DEST/dsp" "$DEST/eq" "$DEST/images" \
          "$DEST/logs" "$DEST/music" "$DEST/remaps" "$DEST/scraper" \
          "$DEST/sfx" "$DEST/sounds" "$DEST/temp" "$DEST/themes" \
          "$DEST/backup" "$DEST/fonts" "$DEST/python-libs"
+mkdir -p "$DEST/data/scraper/images" "$DEST/data/scraper/videos" \
+         "$DEST/data/scraper/manuals"
 
 echo "[2/7] Copy frontend sources"
 # exclude heavy test/dev paths; keep assets
@@ -53,16 +55,24 @@ fi
 echo "[5/7] Install systemd unit"
 mkdir -p "$SYSD"
 cp "$SRC_DIR/lakka/rgbpi-frontend.service" "$SYSD/"
-# Disable stock retroarch.service so it doesn't race for fb0
-systemctl disable retroarch 2>/dev/null || true
 systemctl daemon-reload
-systemctl enable rgbpi-frontend.service
+if [ "${RGBPI_ENABLE_SERVICE:-0}" = "1" ]; then
+    echo "      Enabling rgbpi-frontend.service and disabling retroarch"
+    # Disable stock retroarch.service so it doesn't race for fb0.
+    systemctl disable retroarch 2>/dev/null || true
+    systemctl enable rgbpi-frontend.service
+else
+    echo "      Safe mode: service installed but not enabled"
+    echo "      Manual test: systemctl stop retroarch; systemctl start rgbpi-frontend"
+fi
 
 echo "[6/7] Write switchres.ini default"
 cat > "$DEST/data/switchres.ini" <<'INI'
 monitor   custom
 crt_range0  15625-15750, 49.50-65.00, 3.900, 4.700, 6.100, 0.064, 0.192, 1.024, 0, 0, 192, 288, 448, 576
 INI
+mkdir -p /storage/.config/retroarch
+cp "$DEST/data/switchres.ini" /storage/.config/retroarch/switchres.ini
 
 echo "[7/8] Run smoke test"
 sh "$SRC_DIR/lakka/smoke-test.sh" || {
@@ -72,5 +82,10 @@ sh "$SRC_DIR/lakka/smoke-test.sh" || {
     exit 3
 }
 
-echo "[8/8] Done. Reboot to launch frontend."
-echo "Manual test: systemctl start rgbpi-frontend"
+echo "[8/8] Done."
+if [ "${RGBPI_ENABLE_SERVICE:-0}" = "1" ]; then
+    echo "Reboot to launch frontend."
+else
+    echo "RetroArch boot left untouched."
+    echo "Manual test: systemctl stop retroarch; systemctl start rgbpi-frontend"
+fi

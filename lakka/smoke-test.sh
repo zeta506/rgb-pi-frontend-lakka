@@ -39,7 +39,7 @@ fi
 
 # 4. Import smoke test (actually load modules)
 export PYTHONPATH="$DEST:$DEST/python-libs"
-export SDL_VIDEODRIVER=kmsdrm
+export SDL_VIDEODRIVER=dummy
 export SDL_FBDEV=/dev/fb0
 python3 - <<'PY' 2>&1
 import sys, os

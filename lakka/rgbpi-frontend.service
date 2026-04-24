@@ -9,8 +9,22 @@ Type=simple
 EnvironmentFile=-/storage/rgbpi/env.conf
 Environment=HOME=/storage
 Environment=PYTHONPATH=/storage/rgbpi:/storage/rgbpi/python-libs
-Environment=SDL_VIDEODRIVER=kmsdrm
+Environment=SDL_VIDEODRIVER=dummy
 Environment=SDL_FBDEV=/dev/fb0
+Environment=SDL_JOYSTICK_ALLOW_BACKGROUND_EVENTS=1
+Environment=SDL_GAMECONTROLLER_ALLOW_BACKGROUND_EVENTS=1
+Environment=SDL_AUDIODRIVER=alsa
+Environment=ALSA_CARD=1
+Environment=AUDIODEV=hw:1,0
+Environment=RGBPI_FB_WIDTH=3840
+Environment=RGBPI_FB_HEIGHT=240
+# UI fills full 3840x240 surface; CRT bandwidth collapses 12x horizontal
+# stretch back to 4:3-looking output. Anything narrower leaves black bars.
+Environment=RGBPI_UI_WIDTH=3840
+Environment=RGBPI_UI_HEIGHT=240
+Environment=RGBPI_UI_X=0
+Environment=RGBPI_UI_Y=0
+Environment=RGBPI_FB_MAX_FPS=15
 WorkingDirectory=/storage/rgbpi
 ExecStartPre=/bin/sh -c 'cat /dev/zero > /dev/fb0 2>/dev/null; true'
 ExecStart=/usr/bin/python3 /storage/rgbpi/rgbpiui.py

@@ -36,6 +36,10 @@ def make_common(system, game_path, config, is_global_nfs):
     else:
         config.append('video_shader_enable = false\n')
     # Audio
+    config.append('audio_driver = "alsa"\n')
+    config.append('audio_device = "hw:1,0"\n')
+    config.append('audio_enable = "true"\n')
+    config.append('audio_mute_enable = "false"\n')
     config.append('audio_resampler_quality = "3"\n')
     # Audio DSP
     config.append('audio_filter_dir = "' + rtk.path_rgbpi_dsp + '"\n')

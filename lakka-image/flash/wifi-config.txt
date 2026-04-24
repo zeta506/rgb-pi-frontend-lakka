@@ -1,0 +1,7 @@
+# Wi-Fi credentials seeded into ConnMan on first boot.
+# Edit BEFORE inserting the SD into the Pi5.  Leave commented out (or
+# delete the file) to skip Wi-Fi seeding entirely.
+
+SSID=YOUR_WIFI_NAME
+PSK=YOUR_WIFI_PASSWORD
+COUNTRY=US

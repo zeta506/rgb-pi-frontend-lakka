@@ -1,10 +1,28 @@
 import os
 os.environ['PYGAME_HIDE_SUPPORT_PROMPT'] = "hide"
 os.environ['PYGAME_BLEND_ALPHA_SDL2'] = "1"
-# Lakka-port: SDL hints so pygame uses KMS/fbdev when no X is running
-os.environ.setdefault('SDL_VIDEODRIVER', 'kmsdrm')
+# Lakka-port: the bundled aarch64 pygame wheel lacks kmsdrm/fbcon, so render
+# with SDL's dummy backend and mirror the RGB-Pi surface to /dev/fb0.
+os.environ.setdefault('SDL_VIDEODRIVER', 'dummy')
 os.environ.setdefault('SDL_FBDEV', '/dev/fb0')
+# Lakka-port: SDL2 silently drops joystick events when the video window has
+# no focus. Dummy video never has focus, so without this hint the FE menu
+# sees zero gamepad input.
+os.environ.setdefault('SDL_JOYSTICK_ALLOW_BACKGROUND_EVENTS', '1')
+os.environ.setdefault('SDL_GAMECONTROLLER_ALLOW_BACKGROUND_EVENTS', '1')
+# Keep SDL using the kernel evdev path (not legacy /dev/input/js*).
+os.environ.setdefault('SDL_LINUX_JOYSTICK_USE_DEPRECATED_INTERFACE', '0')
 import sys
+# Lakka-port: SSH blindado — re-enable on every frontend launch so that even
+# a botched WiFi action can't lock us out. Done before any rtk import so logs
+# go through normal stderr if rtk fails to load.
+try:
+    os.makedirs('/storage/.cache/services', exist_ok=True)
+    with open('/storage/.cache/services/sshd.conf', 'w') as _f:
+        _f.write('SSHD_START=true\n')
+    os.system('systemctl start sshd >/dev/null 2>&1')
+except Exception as _e:
+    pass
 # Lakka-port: stub optional Pi-specific native libs before any downstream import
 import lakka_optional_deps  # noqa: F401
 import rtk

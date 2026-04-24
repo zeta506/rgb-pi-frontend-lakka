@@ -4,3 +4,11 @@ __pycache__/
 logs/
 captures/
 temp/
+
+# Local Wi-Fi credentials (never commit real SSIDs/PSKs)
+lakka-image/flash/wifi-config.local.txt
+lakka-image/flash/wifi.conf.local
+lakka-image/flash/.first-run-done
+
+# Local artefacts
+.codex-ssh-askpass-root.cmd
