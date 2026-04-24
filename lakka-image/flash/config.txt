@@ -1,0 +1,11 @@
+# Lakka-CRT-RetroTINK bootloader config.
+# Delegates everything to distroconfig.txt (edited by apply.sh / firstboot.sh).
+
+# Don't wake CEC TVs on reboot.
+hdmi_ignore_cec_init=1
+
+[all]
+include distroconfig.txt
+
+# Uncomment to expose an IR receiver on GPIO18.
+# dtoverlay=gpio-ir,gpio_pin=18

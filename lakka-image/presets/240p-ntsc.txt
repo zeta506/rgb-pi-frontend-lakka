@@ -1,0 +1,7 @@
+# 240p NTSC via RetroTINK Ultimate — 2560x240 superres, 15.734 kHz / 59.94 Hz
+dtoverlay=vc4-kms-dpi-generic
+dtparam=rgb888
+dtparam=clock-frequency=52332342
+dtparam=hactive=2560,hfp=202,hsync=227,hbp=337
+dtparam=vactive=240,vfp=3,vsync=5,vbp=14
+dtparam=hsync-invert,vsync-invert

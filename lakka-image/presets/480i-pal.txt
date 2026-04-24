@@ -1,0 +1,8 @@
+# 576i PAL via RetroTINK Ultimate — 3840x576i superres, 15.625 kHz / 50 Hz
+dtoverlay=vc4-kms-dpi-generic
+dtparam=rgb888
+dtparam=clock-frequency=81000000
+dtparam=hactive=3840,hfp=336,hsync=372,hbp=600
+dtparam=vactive=576,vfp=5,vsync=5,vbp=39
+dtparam=hsync-invert,vsync-invert
+dtparam=interlaced

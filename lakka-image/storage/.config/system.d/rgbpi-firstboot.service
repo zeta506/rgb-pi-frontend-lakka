@@ -1,0 +1,16 @@
+[Unit]
+Description=rgbpi-lakka CRT/SSH first-boot provisioner
+ConditionPathExists=/flash/firstboot.sh
+ConditionPathExists=!/storage/.first-run-done
+After=basic.target
+Before=retroarch.service
+
+[Service]
+Type=oneshot
+ExecStart=/bin/sh /flash/firstboot.sh
+RemainAfterExit=yes
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

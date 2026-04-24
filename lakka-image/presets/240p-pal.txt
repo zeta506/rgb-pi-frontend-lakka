@@ -1,0 +1,7 @@
+# 288p PAL via RetroTINK Ultimate — 2560x288 superres, 15.625 kHz / 50 Hz
+dtoverlay=vc4-kms-dpi-generic
+dtparam=rgb888
+dtparam=clock-frequency=43750000
+dtparam=hactive=2560,hfp=160,hsync=192,hbp=288
+dtparam=vactive=288,vfp=4,vsync=3,vbp=17
+dtparam=hsync-invert,vsync-invert
