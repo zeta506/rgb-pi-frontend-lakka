@@ -12,6 +12,10 @@ from math import ceil, floor, pi, cos, sin, radians, degrees
 from PIL import Image
 from pygame.locals import *
 
+# Lakka-port: inject path constants (rgbpi-lakka)
+from lakka_paths import *
+ensure_dirs()
+
 ''' Global constants '''
 
 scr_w = 320

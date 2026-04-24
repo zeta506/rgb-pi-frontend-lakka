@@ -4,6 +4,7 @@ import cglobals
 import rtk
 import utils
 import pygame
+import lakka_switchres
 
 ''' Config files '''
 
@@ -15,22 +16,20 @@ def make_common(system, game_path, config, is_global_nfs):
     config.append('driver_switch_enable = "true"\n')
     config.append('video_fullscreen = "true"\n')
     config.append('video_crop_overscan = "false"\n')
-    config.append('dynares_crt_type = "' + rtk.cfg_crt_type + '"\n')
     config.append('video_smooth = "false"\n')
     config.append('vrr_runloop_enable = "false"\n')
-    if rtk.cfg_video_info == 'on':
-        config.append('dynares_video_info = "true"\n')
-    else:
-        config.append('dynares_video_info = "false"\n')
-    if rtk.cfg_flicker_reduction == 'on':
-        config.append('dynares_flicker_reduction = "true"\n')
-    else:
-        config.append('dynares_flicker_reduction = "false"\n')
-    if rtk.cfg_dynares == 'native':
-        if rtk.cfg_overscan == 'on':
-            config.append('dynares_overscan = "8"\n')
-        else:
-            config.append('dynares_overscan = "0"\n')
+    # Lakka-port: write switchres.ini and emit stock crt_switch_* keys
+    lakka_switchres.write_switchres_ini(
+        rtk.path_rgbpi_data + '/switchres.ini',
+        crt_type=rtk.cfg_crt_type,
+        super_width=lakka_switchres.SUPER_WIDTH.get(rtk.cfg_dynares, '3840'))
+    lakka_switchres.apply_crt_settings(
+        config,
+        cfg_crt_type=rtk.cfg_crt_type,
+        cfg_dynares=rtk.cfg_dynares,
+        cfg_overscan=rtk.cfg_overscan,
+        cfg_video_info=rtk.cfg_video_info,
+        cfg_flicker_reduction=rtk.cfg_flicker_reduction)
     # Set Fake LGun Color Replacement
     if rtk.cfg_lgun_color_rep == 'on':
         config.append('video_shader_enable = true\n')
@@ -377,7 +376,6 @@ def make_arcade_cfg_file(game_path, is_global_nfs):
     make_common('arcade', game_path, config, is_global_nfs)
     # Video
     if is_game_tate and rotation_cfg == 'no_rotation' and 'naomi' not in game_path:
-        config.append('dynares_mode = "custom"\n')
         config.append('aspect_ratio_index = "23"\n')
         config.append('video_fullscreen_x = "640"\n')
         config.append('video_fullscreen_y = "480"\n')
@@ -387,12 +385,10 @@ def make_arcade_cfg_file(game_path, is_global_nfs):
         config.append('video_font_path = "' + rtk.path_retroarch_fonts + '/native.ttf"\n')
         config.append('video_font_size = "12"\n')
     elif rtk.cfg_dynares == 'superx':
-        config.append('dynares_mode = "superx"\n')
         config.append('aspect_ratio_index = "21"\n')
         config.append('video_scale_integer = "false"\n')
         config.append('video_font_path = "' + rtk.path_retroarch_fonts + '/superx240.ttf"\n')
     elif rtk.cfg_dynares == 'native':
-        config.append('dynares_mode = "native"\n')
         config.append('aspect_ratio_index = "21"\n')
         config.append('video_scale_integer = "true"\n')
         config.append('video_font_path = "' + rtk.path_retroarch_fonts + '/native.ttf"\n') 
@@ -425,7 +421,6 @@ def make_console_cfg_file(system, is_global_nfs):
     make_common(system, system, config, is_global_nfs)
     # Video
     if rtk.cfg_dynares == 'superx':
-        config.append('dynares_mode = "superx"\n')
         config.append('aspect_ratio_index = "21"\n')
         config.append('video_scale_integer = "false"\n')
         if(system == 'dreamcast' or system == 'naomi'):
@@ -434,7 +429,6 @@ def make_console_cfg_file(system, is_global_nfs):
             config.append('video_font_path = "' + rtk.path_retroarch_fonts + '/superx240.ttf"\n')
     elif rtk.cfg_dynares == 'native':
         if(system == 'snes'):
-            config.append('dynares_mode = "custom"\n')
             config.append('aspect_ratio_index = "23"\n')
             config.append('video_fullscreen_x = "512"\n')
             config.append('video_fullscreen_y = "224"\n')
@@ -444,14 +438,12 @@ def make_console_cfg_file(system, is_global_nfs):
             config.append('video_font_path = "' + rtk.path_retroarch_fonts + '/native.ttf"\n')
             config.append('video_font_size = "6"\n')
         else:
-            config.append('dynares_mode = "native"\n')
             config.append('aspect_ratio_index = "21"\n')
             config.append('video_scale_integer = "true"\n')
             config.append('video_font_path = "' + rtk.path_retroarch_fonts + '/native.ttf"\n')
-    if handheld_mode == 'full_screen':
-        config.append('dynares_handheld_full = "true"\n')
-    else:
-        config.append('dynares_handheld_full = "false"\n')
+    # Lakka-port: dynares_handheld_full dropped; stock RA has no equivalent.
+    # Handheld full-screen semantics now handled by per-core-override aspect.
+    _ = handheld_mode
     config.append('video_rotation = "0"\n')
     # Write file
     retroarch_cfg_file = rtk.path_rgbpi_data + '/retroarch.cfg'

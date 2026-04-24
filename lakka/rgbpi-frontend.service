@@ -1,0 +1,23 @@
+[Unit]
+Description=RGB-Pi Frontend (Lakka port)
+After=basic.target network.target
+Conflicts=retroarch.service
+ConditionPathExists=/storage/rgbpi/rgbpiui.py
+
+[Service]
+Type=simple
+EnvironmentFile=-/storage/rgbpi/env.conf
+Environment=HOME=/storage
+Environment=PYTHONPATH=/storage/rgbpi:/storage/rgbpi/python-libs
+Environment=SDL_VIDEODRIVER=kmsdrm
+Environment=SDL_FBDEV=/dev/fb0
+WorkingDirectory=/storage/rgbpi
+ExecStartPre=/bin/sh -c 'cat /dev/zero > /dev/fb0 2>/dev/null; true'
+ExecStart=/usr/bin/python3 /storage/rgbpi/rgbpiui.py
+Restart=on-failure
+RestartSec=3
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
