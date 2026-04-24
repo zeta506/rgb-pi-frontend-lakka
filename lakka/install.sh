@@ -21,6 +21,8 @@ mkdir -p "$DEST" "$DEST/data" "$DEST/dsp" "$DEST/eq" "$DEST/images" \
 echo "[2/7] Copy frontend sources"
 # exclude heavy test/dev paths; keep assets
 cp -a "$SRC_DIR"/*.py "$DEST/"
+cp -a "$SRC_DIR/lakka/smoke-test.sh" "$DEST/"
+chmod +x "$DEST/smoke-test.sh"
 cp -a "$SRC_DIR/images"   "$DEST/"  2>/dev/null || true
 cp -a "$SRC_DIR/sounds"   "$DEST/"  2>/dev/null || true
 cp -a "$SRC_DIR/themes"   "$DEST/"  2>/dev/null || true
@@ -62,5 +64,13 @@ monitor   custom
 crt_range0  15625-15750, 49.50-65.00, 3.900, 4.700, 6.100, 0.064, 0.192, 1.024, 0, 0, 192, 288, 448, 576
 INI
 
-echo "[7/7] Done. Reboot to launch frontend."
+echo "[7/8] Run smoke test"
+sh "$SRC_DIR/lakka/smoke-test.sh" || {
+    echo "!! Smoke test failed. Inspect output above before enabling service."
+    echo "!! Service remains enabled; you can disable with:"
+    echo "!!    systemctl disable rgbpi-frontend.service"
+    exit 3
+}
+
+echo "[8/8] Done. Reboot to launch frontend."
 echo "Manual test: systemctl start rgbpi-frontend"

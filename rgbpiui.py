@@ -1,7 +1,12 @@
 import os
 os.environ['PYGAME_HIDE_SUPPORT_PROMPT'] = "hide"
 os.environ['PYGAME_BLEND_ALPHA_SDL2'] = "1"
+# Lakka-port: SDL hints so pygame uses KMS/fbdev when no X is running
+os.environ.setdefault('SDL_VIDEODRIVER', 'kmsdrm')
+os.environ.setdefault('SDL_FBDEV', '/dev/fb0')
 import sys
+# Lakka-port: stub optional Pi-specific native libs before any downstream import
+import lakka_optional_deps  # noqa: F401
 import rtk
 import pygame
 import cglobals

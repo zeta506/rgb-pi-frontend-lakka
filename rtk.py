@@ -1,4 +1,8 @@
 import os
+# Lakka-port: stub optional native libs as early as possible so any module
+# imported alongside rtk (sound_mgr, input_mgr, bluetooth_mgr, utils...) gets
+# safe fallbacks instead of ImportError.
+import lakka_optional_deps  # noqa: F401
 import pygame
 import string
 import logging
