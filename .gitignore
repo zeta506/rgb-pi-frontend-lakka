@@ -1,3 +1,6 @@
-.vscode/
-.codex*
-*.code-workspace
+__pycache__/
+*.pyc
+*.pyo
+logs/
+captures/
+temp/
