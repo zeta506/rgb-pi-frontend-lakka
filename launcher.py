@@ -8,14 +8,17 @@ import lakka_switchres
 
 ''' Config files '''
 
+def apply_lakka_super_viewport(config):
+    # Lakka already owns the 3840x240 viewport in retroarch.cfg.
+    # Keep the appendconfig from perturbing SwitchRes/video geometry.
+    pass
+
 def make_common(system, game_path, config, is_global_nfs):
     # Video
     config.append('video_driver = "gl"\n')
-    config.append('video_scale = "1.000000"\n')
     config.append('video_shared_context = "false"\n')
     config.append('driver_switch_enable = "true"\n')
     config.append('video_fullscreen = "true"\n')
-    config.append('video_crop_overscan = "false"\n')
     config.append('video_smooth = "false"\n')
     config.append('vrr_runloop_enable = "false"\n')
     # Lakka-port: write switchres.ini and emit stock crt_switch_* keys
@@ -41,12 +44,8 @@ def make_common(system, game_path, config, is_global_nfs):
     config.append('audio_enable = "true"\n')
     config.append('audio_mute_enable = "false"\n')
     config.append('audio_resampler_quality = "3"\n')
-    # Audio DSP
-    config.append('audio_filter_dir = "' + rtk.path_rgbpi_dsp + '"\n')
-    if rtk.cfg_stereo == 'on':
-        config.append('audio_dsp_plugin = "' + rtk.path_rgbpi_dsp + '/stereo.dsp"\n')
-    elif rtk.cfg_stereo == 'off':
-        config.append('audio_dsp_plugin = "' + rtk.path_rgbpi_dsp + '/mono.dsp"\n')
+    # Lakka: keep the USB DAC path simple while validating game audio.
+    config.append('audio_dsp_plugin = ""\n')
     # Input
     config.append('input_driver = "udev"\n') # linuxraw, sdl2, udev, wayland
     config.append('input_joypad_driver = "udev"\n') # hid, linuxraw, sdl2, udev, xinput
@@ -389,9 +388,8 @@ def make_arcade_cfg_file(game_path, is_global_nfs):
         config.append('video_font_path = "' + rtk.path_retroarch_fonts + '/native.ttf"\n')
         config.append('video_font_size = "12"\n')
     elif rtk.cfg_dynares == 'superx':
-        config.append('aspect_ratio_index = "21"\n')
-        config.append('video_scale_integer = "false"\n')
-        config.append('video_font_path = "' + rtk.path_retroarch_fonts + '/superx240.ttf"\n')
+        apply_lakka_super_viewport(config)
+        config.append('video_font_path = "' + rtk.path_retroarch_fonts + '/SuperResolucion.ttf"\n')
     elif rtk.cfg_dynares == 'native':
         config.append('aspect_ratio_index = "21"\n')
         config.append('video_scale_integer = "true"\n')
@@ -425,12 +423,11 @@ def make_console_cfg_file(system, is_global_nfs):
     make_common(system, system, config, is_global_nfs)
     # Video
     if rtk.cfg_dynares == 'superx':
-        config.append('aspect_ratio_index = "21"\n')
-        config.append('video_scale_integer = "false"\n')
+        apply_lakka_super_viewport(config)
         if(system == 'dreamcast' or system == 'naomi'):
-            config.append('video_font_path = "' + rtk.path_retroarch_fonts + '/superx480.ttf"\n')
+            config.append('video_font_path = "' + rtk.path_retroarch_fonts + '/SuperResolucion.ttf"\n')
         else:
-            config.append('video_font_path = "' + rtk.path_retroarch_fonts + '/superx240.ttf"\n')
+            config.append('video_font_path = "' + rtk.path_retroarch_fonts + '/SuperResolucion.ttf"\n')
     elif rtk.cfg_dynares == 'native':
         if(system == 'snes'):
             config.append('aspect_ratio_index = "23"\n')
@@ -512,6 +509,10 @@ def launch_content():
         rtk.notif_msg.display(text='game_in_use_info')
     else:
         cglobals.sound_mgr.pause_music()
+        try:
+            pygame.mixer.quit()
+        except Exception:
+            pass
         pygame.display.quit()
 
         ''' Check if there is any specific EQ Preset for this system '''
@@ -674,7 +675,7 @@ def launch_content():
             elif system == 'nes':
                 launch_command = path_retroarch + color_cmd + device_cmd + netplay_cmd + ' -L ' + path_cores + '/fceumm_libretro.so --appendconfig=' + retroarch_cfg_file + ' "' + game_path + '"'
             elif system == 'snes':
-                launch_command = path_retroarch + color_cmd + device_cmd + netplay_cmd + ' -L ' + path_cores + '/snes9x_libretro.so --appendconfig=' + retroarch_cfg_file + ' "' + game_path + '"'
+                launch_command = path_retroarch + color_cmd + device_cmd + netplay_cmd + ' -L ' + path_cores + '/bsnes-jg_libretro.so --appendconfig=' + retroarch_cfg_file + ' "' + game_path + '"'
             elif system == 'n64':
                 launch_command = path_retroarch + color_cmd + device_cmd + netplay_cmd + ' -L ' + path_cores + '/mupen64plus_next_libretro.so --appendconfig=' + retroarch_cfg_file + ' "' + game_path + '"'
             elif system == 'sgb':
@@ -694,7 +695,10 @@ def launch_content():
             elif system == 'dreamcast' or system == 'naomi':
                 launch_command = path_retroarch + color_cmd + device_cmd + netplay_cmd + ' -L ' + path_cores + '/flycast_libretro.so </dev/null --appendconfig=' + retroarch_cfg_file + ' "' + game_path + '"'
             elif system == 'neogeo':
-                launch_command = path_retroarch + color_cmd + device_cmd + netplay_cmd + ' -L ' + path_cores + '/fbneo_libretro.so --appendconfig=' + retroarch_cfg_file + ' "' + game_path + '"'
+                if game_path.lower().endswith('.neo'):
+                    launch_command = path_retroarch + color_cmd + device_cmd + netplay_cmd + ' -L ' + path_cores + '/geolith_libretro.so --appendconfig=' + retroarch_cfg_file + ' "' + game_path + '"'
+                else:
+                    launch_command = path_retroarch + color_cmd + device_cmd + netplay_cmd + ' -L ' + path_cores + '/fbneo_libretro.so --appendconfig=' + retroarch_cfg_file + ' "' + game_path + '"'
             elif system == 'neocd':
                 launch_command = path_retroarch + color_cmd + device_cmd + netplay_cmd + ' -L ' + path_cores + '/neocd_libretro.so --appendconfig=' + retroarch_cfg_file + ' "' + game_path + '"'
             elif system == 'ngp':
@@ -742,6 +746,14 @@ def launch_content():
         # Pygame
         utils.set_sync()
         rtk.init_video()
+        try:
+            cglobals.sound_mgr.init_mixer()
+            cglobals.sound_mgr.load_sound_fx()
+            cglobals.sound_mgr.set_bg_music_volume()
+            cglobals.sound_mgr.set_menu_sounds_volume()
+            cglobals.sound_mgr.status = 'Stopped'
+        except Exception as error:
+            rtk.logging.error('Error restoring FE audio: %s', error)
         # Clean remaps
         if not is_global_nfs:
             if (system == 'amiga' or system == 'amigacd') and rtk.cfg_user_remaps == 'off':
@@ -760,6 +772,11 @@ def launch_content():
             utils.set_core_enable_patch_support()
         # Reset keys pressed
         utils.reset_key_pressed()
+        try:
+            cglobals.input_mgr.init_joysticks()
+            cglobals.input_mgr.load_joy_btn_style()
+        except Exception as error:
+            rtk.logging.error('Error restoring FE controls: %s', error)
         # Restore EQ Preset
         if is_system_preset:
             cglobals.sound_mgr.set_preset(preset=eq_preset)

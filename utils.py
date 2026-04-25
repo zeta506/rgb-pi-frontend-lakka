@@ -204,9 +204,7 @@ def reset_key_pressed():
         joystick.init()
 
 def check_rom_path(path):
-    # Check that entries have the new paths and not old system paths
-    # Fix crash from Alpha 12 to Alpha 13
-    if '/media/' in path:
+    if os.path.isfile(path) or '/media/' in path:
         return True
     else:
         return False
@@ -324,6 +322,14 @@ def shutdown(reboot=False, save_cfg=False, manual_shutdown=False):
         cmd('shutdown -r now')
     else:
         cmd('shutdown -h now')
+    sys.exit(0)
+
+def return_to_lakka():
+    rtk.save_cfg_file()
+    cmd('clear')
+    with open('/storage/.cache/rgbpi-return-to-lakka', 'w', encoding='utf-8') as file:
+        file.write('1\n')
+    pygame.quit()
     sys.exit(0)
 
 def is_tate():
@@ -1392,7 +1398,27 @@ def mount_usb(usb):
     # Check disk
     if disk == None:
         return 'ko_unit_not_found'
-    else:
+    # Lakka-port: udisks auto-mounts USB sticks under
+    # /storage/roms/<dev>-usb-<label>/. Reuse that mount instead of
+    # forcing the disk into /var/media — saves us re-mounting and lets
+    # Lakka own the device. We just point cglobals.mount_point at the
+    # auto-mount and consider it ok.
+    try:
+        with open('/proc/mounts') as _mf:
+            for line in _mf:
+                parts = line.split()
+                if parts and parts[0] == '/dev/' + disk:
+                    auto_mp = parts[1]
+                    # Only accept paths under /storage/roms or /var/media
+                    if auto_mp.startswith('/storage/roms') or auto_mp.startswith('/var/media'):
+                        cglobals.mount_point = auto_mp
+                        rtk.logging.info('mount_usb: reusing existing mount %s', auto_mp)
+                        is_ok = gen_game_files()
+                        return 'ok_mount' if is_ok else 'ko_mnt_files'
+    except Exception as _e:
+        rtk.logging.debug('mount_usb auto-mount probe: %s', _e)
+    # Fall through to original behaviour (remount at path_media_usbN)
+    if True:
         # Umount units
         umount_all()
         # Mount and replace local gamefiles path
@@ -2365,24 +2391,34 @@ def scan_games(do_scrap=True):
                 system = row["System"]
                 formats = row["Formats"]
                 subsystems = row["Subsystems"].split('|')
-                search_path = cglobals.mount_point + '/roms/' + system
-                for entry in scantree(search_path):
-                    subsystem = get_subsystem(path=entry.path, system=system, subsystems=subsystems)
-                    is_supported_format = entry.name.lower().endswith(tuple(formats.split('|')))
-                    is_hidden = entry.name.startswith('.')
-                    is_special = entry.name.startswith('(')
-                    is_part = (
-                        re.findall("\(disc.*[0-9].*\)", entry.name.lower())
-                        #or re.findall("\(disk.*[0-9].*\)", entry.name.lower())
-                        #or re.findall("\(tape.*[0-9].*\)", entry.name.lower())
-                        #or re.findall("\(side.*[a-b].*\)", entry.name.lower())
-                    )
-                    short_path = entry.path.replace(cglobals.mount_point,'')
-                    if subsystem and is_supported_format and not is_hidden and not is_special and \
-                            entry.name not in cglobals.bios_db and entry.name not in cglobals.scan_black_list and \
-                            not is_part:
-                        game = {'Id':'','Hash':'','File':short_path,'System':system,'Subsystem':subsystem,'Name':'','Genre':'','Developer':'','Year':'','Players':''}
-                        scanned_games.append(game)
+                search_paths = [
+                    cglobals.mount_point + '/roms/' + system,
+                    cglobals.mount_point + '/' + system,
+                ]
+                seen_paths = set()
+                for search_path in search_paths:
+                    if not os.path.isdir(search_path):
+                        continue
+                    for entry in scantree(search_path):
+                        if entry.path in seen_paths:
+                            continue
+                        seen_paths.add(entry.path)
+                        subsystem = get_subsystem(path=entry.path, system=system, subsystems=subsystems)
+                        is_supported_format = entry.name.lower().endswith(tuple(formats.split('|')))
+                        is_hidden = entry.name.startswith('.')
+                        is_special = entry.name.startswith('(')
+                        is_part = (
+                            re.findall("\(disc.*[0-9].*\)", entry.name.lower())
+                            #or re.findall("\(disk.*[0-9].*\)", entry.name.lower())
+                            #or re.findall("\(tape.*[0-9].*\)", entry.name.lower())
+                            #or re.findall("\(side.*[a-b].*\)", entry.name.lower())
+                        )
+                        short_path = entry.path.replace(cglobals.mount_point,'')
+                        if subsystem and is_supported_format and not is_hidden and not is_special and \
+                                entry.name not in cglobals.bios_db and entry.name not in cglobals.scan_black_list and \
+                                not is_part:
+                            game = {'Id':'','Hash':'','File':short_path,'System':system,'Subsystem':subsystem,'Name':'','Genre':'','Developer':'','Year':'','Players':''}
+                            scanned_games.append(game)
         # Prepare favorites
         short_favs = []
         short_favs_tate = []
@@ -2396,6 +2432,9 @@ def scan_games(do_scrap=True):
         scraped_games = scrap_games(game_list=scanned_games,do_scrap=do_scrap)
         scraped_favs = scrap_games(game_list=short_favs,do_scrap=do_scrap)
         scraped_favs_tate = scrap_games(game_list=short_favs_tate,do_scrap=do_scrap)
+        scraped_games = dedupe_games(scraped_games)
+        scraped_favs = dedupe_games(scraped_favs)
+        scraped_favs_tate = dedupe_games(scraped_favs_tate)
         # Write to file
         write_games(games=scraped_games, path_file=path_games)
         write_games(games=scraped_favs, path_file=path_fav)
@@ -2427,6 +2466,36 @@ def write_games(games, path_file):
         writer = csv.DictWriter(csvfile, delimiter=',', quotechar='"', quoting=csv.QUOTE_ALL, fieldnames=fieldnames)
         writer.writeheader()
         writer.writerows(games)
+
+def _rom_preference_score(game):
+    path = game.get('File', '').lower()
+    score = 0
+    for token, value in (
+        ('(usa', 50),
+        ('(world', 45),
+        ('(europe', 40),
+        ('(japan', 10),
+    ):
+        if token in path:
+            score += value
+    for token in ('(beta', '(proto', '(sample', '(demo', '(pirate', '(unl', '(hack', '(bad'):
+        if token in path:
+            score -= 25
+    return score
+
+def dedupe_games(games):
+    selected = {}
+    order = []
+    for game in games:
+        name = game.get('Name') or os.path.splitext(os.path.basename(game.get('File', '')))[0]
+        key = (game.get('System', ''), game.get('Subsystem', ''), normalize(name))
+        if key not in selected:
+            selected[key] = game
+            order.append(key)
+            continue
+        if _rom_preference_score(game) > _rom_preference_score(selected[key]):
+            selected[key] = game
+    return [selected[key] for key in order]
 
 def normalize(name):
     game_name = name.upper()

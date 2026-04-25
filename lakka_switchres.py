@@ -54,7 +54,7 @@ def apply_crt_settings(config, cfg_crt_type, cfg_dynares, cfg_overscan,
     # CRT switchres
     config.append('crt_switch_resolution = "1"\n')               # 1 = native, frontend sets super
     config.append('crt_switch_resolution_super = "%s"\n' % super_w)
-    config.append('crt_switch_hires_menu = "true"\n')
+    config.append('crt_switch_hires_menu = "false"\n')
     config.append('crt_switch_center_adjust = "0"\n')
     config.append('crt_switch_vertical_adjust = "0"\n')
     # Overscan (RGB-Pi dynares_overscan=8 => trim 8 lines)

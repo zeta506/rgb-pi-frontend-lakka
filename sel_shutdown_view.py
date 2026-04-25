@@ -40,7 +40,8 @@ class Sel_Shutdown_View(object):
         self.options = [
             'shutdown',
             'manual_shutdown',
-            'reboot'
+            'reboot',
+            'return_to_lakka'
         ]
         self.option_list = rtk.RtkTextList(
             name         = 'shutdown_list',
@@ -52,7 +53,7 @@ class Sel_Shutdown_View(object):
             box_size     = 128,
             position     = ('center',self.list_y),
             line_space   = rtk.selector_list_line_space,
-            list_size    = 3)
+            list_size    = 4)
         # Item selector
         sel_img = rtk.path_rgbpi + '/themes/' + rtk.cfg_theme + '/images/selector_sel_view.bmp'
         if not os.path.isfile(sel_img):
@@ -165,6 +166,8 @@ class Sel_Shutdown_View(object):
                         utils.shutdown()
                     elif self.__get_current_option() == 'manual_shutdown':
                         utils.shutdown(manual_shutdown=True)
+                    elif self.__get_current_option() == 'return_to_lakka':
+                        utils.return_to_lakka()
                 elif event.key == cglobals.input_mgr.joy_action_2 or event.key == 'K_BACKSPACE':
                     utils.goto_view('last_view')
 

@@ -16,7 +16,7 @@
 "segacd","Mega-CD/Sega CD",1991,"Sega",".chd|.cue|.zip|.7z|.m3u",
 "sega32x","Megadrive 32X/Sega 32X",1994,"Sega",".32x|.zip|.7z",
 "dreamcast","Dreamcast",1998,"Sega",".cdi|.chd|.gdi|.zip|.7z|.m3u",
-"neogeo","NEO·GEO (AES/MVS)",1990,"SNK",".zip|.7z",
+"neogeo","NEO·GEO (AES/MVS)",1990,"SNK",".neo|.zip|.7z",
 "neocd","NEO·GEO CD",1994,"SNK",".cue|.chd|.zip|.7z|.m3u",
 "ngp","NEO·GEO Pocket/Color",1998-1999,"SNK",".ngp|.ngc|.zip|.7z",
 "psx","PlayStation",1994,"SONY",".cue|.ccd|.chd|.iso|.m3u|.pbp|.img|.zip|.7z",

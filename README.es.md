@@ -37,9 +37,9 @@ lakka-port/                       # Frontend (Python) corriendo sobre Lakka
 |-----------|-------|
 | Raspberry Pi 5 (8 GB) | Kernel 6.12.66/6.12.77, interlace vía RP1 PIO |
 | RetroTINK Ultimate HAT | DPI RGB888 24-bit → componente YPbPr al CRT |
-| Sony Trinitron Wega CRT | 15 kHz NTSC + interlace 480i para arcade |
+| CRT 15 kHz | NTSC 240p + superres 480i |
 | DAC USB C-Media | Card 1 cuando `nohdmi` quita vc4-hdmi |
-| Mando USB DragonRise | Detectado vía sysfs (evdev no requerido) |
+| Mando USB | Detectado vía sysfs (evdev no requerido) |
 
 ## Inicio rápido
 
@@ -89,6 +89,27 @@ ssh root@<pi-ip> 'systemctl stop retroarch; systemctl start rgbpi-frontend'
 Setear `RGBPI_ENABLE_SERVICE=1` antes de `install.sh` para que la FE
 arranque sola en cada boot. Por defecto `retroarch.service` queda
 activo → un `reboot` siempre te devuelve a Lakka stock si la FE rompe.
+
+El menú **Shutdown** del FE incluye `Return to Lakka`: salís sin reboot,
+se re-habilita `retroarch.service` y arranca XMB. Centinela:
+`/storage/.cache/rgbpi-return-to-lakka`.
+
+## Cambios recientes (post-checkpoint)
+
+- **Core SNES** ahora `bsnes-jg` (más preciso que `snes9x`).
+- **NeoGeo `.neo`** se enruta a `geolith_libretro`; el resto sigue con
+  `fbneo`.
+- **scan_games** busca tanto en `/storage/roms/<system>` como en
+  `/storage/roms/roms/<system>`, así anda con el layout plano de Lakka
+  o el anidado de RGB-Pi.
+- **mount_usb** reutiliza el auto-mount de udisks
+  (`/storage/roms/sdaN-usb-LABEL`) en vez de forzar el disco a
+  `/var/media`.
+- **Scanner standalone** en `lakka/scan-lakka-roms.py` para poblar
+  `games.dat` por shell sin levantar la FE.
+- Entrada **Return to Lakka** + hook `ExecStopPost` en el systemd unit.
+- **`crt_switch_hires_menu = false`** en el template del launcher para
+  que el RGUI in-game se quede en 240p.
 
 ## Por qué existe este port
 
