@@ -31,6 +31,8 @@ cp -a "$SRC_DIR/themes"   "$DEST/"  2>/dev/null || true
 cp -a "$SRC_DIR/data"     "$DEST/"  2>/dev/null || true
 cp -a "$SRC_DIR/raassets" "$DEST/"  2>/dev/null || true
 cp -a "$SRC_DIR/config.ini" "$DEST/"
+# Seed env.conf only if absent so user edits aren't clobbered on re-install
+[ -f "$DEST/env.conf" ] || cp -a "$SRC_DIR/lakka/env.conf" "$DEST/env.conf"
 
 echo "[3/7] Check Python3 + deps"
 if ! command -v python3 >/dev/null 2>&1; then
@@ -55,11 +57,20 @@ fi
 echo "[5/7] Install systemd unit"
 mkdir -p "$SYSD"
 cp "$SRC_DIR/lakka/rgbpi-frontend.service" "$SYSD/"
+[ -f "$SRC_DIR/lakka/rgbpi-boot-logo.service" ] && cp "$SRC_DIR/lakka/rgbpi-boot-logo.service" "$SYSD/"
+cp "$SRC_DIR/lakka/rgbpi-switch-to-lakka.service" "$SYSD/"
+cp "$SRC_DIR/lakka/back-to-lakka.sh" /storage/back-to-lakka.sh
+cp "$SRC_DIR/lakka/return-to-rgbpi.sh" /storage/return-to-rgbpi.sh
+chmod +x /storage/back-to-lakka.sh /storage/return-to-rgbpi.sh
+mkdir -p /storage/.config/system.d/retroarch.service.d
+cp "$SRC_DIR/lakka/retroarch-rgbpi-session-override.conf" \
+   /storage/.config/system.d/retroarch.service.d/override.conf
 systemctl daemon-reload
 if [ "${RGBPI_ENABLE_SERVICE:-0}" = "1" ]; then
     echo "      Enabling rgbpi-frontend.service and disabling retroarch"
     # Disable stock retroarch.service so it doesn't race for fb0.
     systemctl disable retroarch 2>/dev/null || true
+    systemctl enable rgbpi-boot-logo.service 2>/dev/null || true
     systemctl enable rgbpi-frontend.service
 else
     echo "      Safe mode: service installed but not enabled"
@@ -73,6 +84,37 @@ crt_range0  15625-15750, 49.50-65.00, 3.900, 4.700, 6.100, 0.064, 0.192, 1.024, 
 INI
 mkdir -p /storage/.config/retroarch
 cp "$DEST/data/switchres.ini" /storage/.config/retroarch/switchres.ini
+
+if [ -f /flash/cmdline.txt ] && ! grep -qw nosplash /flash/cmdline.txt; then
+    mount -o remount,rw /flash 2>/dev/null || true
+    cp /flash/cmdline.txt /flash/cmdline.txt.before-rgbpi-nosplash 2>/dev/null || true
+    sed -i 's/$/ nosplash/' /flash/cmdline.txt
+    sync
+fi
+
+RA_CFG=/storage/.config/retroarch/retroarch.cfg
+[ -f "$RA_CFG" ] || touch "$RA_CFG"
+for kv in \
+    'menu_driver = "rgui"' \
+    'joypad_autoconfig_dir = "/storage/rgbpi/data/joyconfig"' \
+    'input_driver = "udev"' \
+    'input_joypad_driver = "udev"' \
+    'all_users_control_menu = "true"' \
+    'assets_directory = "/storage/rgbpi/raassets"' \
+    'rgui_menu_color_theme = "16"' \
+    'menu_dynamic_wallpaper_enable = "false"' \
+    'rgui_menu_theme_preset = ""' \
+    'config_save_on_exit = "false"' \
+    'video_font_size = "12.000000"' \
+    'menu_show_start_screen = "false"'
+do
+    key=$(printf '%s' "$kv" | cut -d'=' -f1 | tr -d ' ')
+    if grep -q "^${key} *=" "$RA_CFG" 2>/dev/null; then
+        sed -i "s|^${key} *=.*|${kv}|" "$RA_CFG"
+    else
+        echo "$kv" >> "$RA_CFG"
+    fi
+done
 
 echo "[7/8] Run smoke test"
 sh "$SRC_DIR/lakka/smoke-test.sh" || {

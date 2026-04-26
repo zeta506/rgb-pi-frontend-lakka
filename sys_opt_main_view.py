@@ -52,7 +52,6 @@ class Sys_Opt_Main_View(object):
             'invader|emulation|elipsis',
             'magnifier|scan_games||' + str(rtk.opt_list_highlight),
             'info|information',
-            'help|system_help',
             'olocker|kiosk_mode',
             'power|shutdown||' + str(rtk.opt_list_highlight_2)
         ]
@@ -156,9 +155,9 @@ class Sys_Opt_Main_View(object):
 
     def refresh_options(self):
         if rtk.cfg_kiosk_mode == 'on':
-            self.options[11] = 'clocker|kiosk_mode'
+            self.options[10] = 'clocker|kiosk_mode'
         elif rtk.cfg_kiosk_mode == 'off':
-            self.options[11] = 'olocker|kiosk_mode'
+            self.options[10] = 'olocker|kiosk_mode'
         self.option_list.set_txt_list(text=self.options, index=self.item_index)
 
     def __get_current_option(self):

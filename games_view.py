@@ -19,6 +19,9 @@ class Games_View(Par_Games_View):
         self.tracking_folder_index = [0]
     
     def get_items(self,reload=False):
+        if self.system == 'recents':
+            self.items = utils.get_games(self.system)
+            return
         # Get game items in folder mode or plain list
         if rtk.cfg_list_mode == 'folder_list':
             # Clear all current items
@@ -74,8 +77,16 @@ class Games_View(Par_Games_View):
             self.item_info.set_text(text='folder', l_icon='folder')
             self.item_info.set_position(position=(self.game_info_x,self.game_info_y))
         else:
-            system = utils.get_system_full_name(short_name=self.system, break_name=True)
+            if self.system == 'recents':
+                system = utils.get_system_full_name(short_name=self.items[self.item_index]['System'], break_name=True)
+            else:
+                system = utils.get_system_full_name(short_name=self.system, break_name=True)
             super().update_info(system)
+
+    def sort_items(self):
+        if self.system == 'recents':
+            return
+        super().sort_items()
 
     def gen_helper(self, is_active, force_refresh=False):
         if rtk.cfg_button_style == 'snes':
@@ -165,6 +176,8 @@ class Games_View(Par_Games_View):
     def launch_content(self,system=None):
         if not system:
             system = self.system
+        if self.system == 'recents':
+            system = self.items[self.item_index]['System']
         rtk.logging.info('system %s', system)
         super().launch_content(system)
     

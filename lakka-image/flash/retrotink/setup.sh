@@ -118,7 +118,7 @@ sleep 2
 CFG="/storage/.config/retroarch/retroarch.cfg"
 sed -i "s|audio_device = \".*\"|audio_device = \"${AUDIO_DEV}\"|" "$CFG"
 sed -i 's|video_font_path = \".*\"|video_font_path = \"/storage/fonts/SuperResolucion.ttf\"|' "$CFG"
-sed -i 's|video_font_size = \".*\"|video_font_size = \"8.000000\"|' "$CFG"
+sed -i 's|video_font_size = \".*\"|video_font_size = \"12.000000\"|' "$CFG"
 
 # Forzar DPI como conector KMS
 if grep -q "kms_connector" "$CFG"; then

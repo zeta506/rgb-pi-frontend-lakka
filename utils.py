@@ -21,6 +21,8 @@ import psutil
 import datetime
 import paramiko
 import re
+import platform
+import json
 from PIL import Image
 from collections import namedtuple
 from games_view import Games_View
@@ -176,12 +178,32 @@ def clean_screenshot(system):
             file_path = os.path.join(img_path, entry.name)
             os.remove(file_path)
 
-def scantree(path):
-    for entry in os.scandir(path):
-        if entry.is_dir(follow_symlinks=False):
-            yield from scantree(entry.path)
-        else:
-            yield entry
+def scantree(path, _seen=None):
+    """Recursive scandir that also descends into symlinked directories.
+    Lakka's USB auto-mounts and our /storage/roms/<system>/<sub> symlinks
+    require this — without it every symlinked dir is treated as a file
+    and skipped by the format check."""
+    if _seen is None:
+        _seen = set()
+    try:
+        real = os.path.realpath(path)
+    except OSError:
+        return
+    if real in _seen:
+        return
+    _seen.add(real)
+    try:
+        with os.scandir(path) as it:
+            for entry in it:
+                try:
+                    if entry.is_dir(follow_symlinks=True):
+                        yield from scantree(entry.path, _seen)
+                    elif entry.is_file(follow_symlinks=True):
+                        yield entry
+                except OSError:
+                    continue
+    except OSError:
+        return
 
 def cmd(command, verbose=False):
     if verbose:
@@ -326,11 +348,21 @@ def shutdown(reboot=False, save_cfg=False, manual_shutdown=False):
 
 def return_to_lakka():
     rtk.save_cfg_file()
-    cmd('clear')
-    with open('/storage/.cache/rgbpi-return-to-lakka', 'w', encoding='utf-8') as file:
-        file.write('1\n')
+    cmd('systemctl start rgbpi-switch-to-lakka.service --no-block')
     pygame.quit()
     sys.exit(0)
+
+def is_game_480i(game_path):
+    """Heuristic: known MAME hi-res arcade titles run at 480i and need the
+    superx480 font. Anything else falls to 240p."""
+    name = os.path.basename(game_path).lower()
+    hi_res_prefixes = (
+        'tekken', 'sf3', 'sfiii', 'jojo', 'redearth', 'wzard', 'wofch',
+        'mk4', 'killinst', 'killer', 'soulclbr', 'ehrgeiz', 'fgtlayer',
+        'tekkentt', 'gauntdl', 'rushgun', 'crisscross', 'twrldwar',
+        'cps3', 'naomi', 'atomiswv', 'awbios', 'segasp', 'segabill'
+    )
+    return any(name.startswith(p) for p in hi_res_prefixes)
 
 def is_tate():
     if rtk.cfg_ui_rotation == 'rotate_ccw' or rtk.cfg_ui_rotation == 'rotate_cw':
@@ -606,6 +638,7 @@ def refresh_lang():
 def refresh_views(reload):
     gen_sys_kodi()
     update_sys_favs()
+    update_sys_recents()
     cglobals.systems_view.refresh_view()
     cglobals.joy_cfg_view.refresh_view()
     cglobals.lgun_cfg_view.refresh_view()
@@ -693,6 +726,23 @@ def refresh_all_game_views(reload_game_data=False):
                     rtk.logging.info('Refreshing view...')
                     game_view.refresh_view()
                     game_view.deactivate()
+
+def refresh_recents_view():
+    if rtk.cfg_show_recents != 'on':
+        return
+    load_recent_history()
+    if 'recents' not in cglobals.system_names:
+        update_sys_recents()
+        cglobals.systems_view.refresh_view()
+    if 'recents_view' in cglobals.__dict__.keys():
+        game_view = cglobals.recents_view
+        game_view.item_index = 0
+        game_view.get_items(reload=True)
+        game_view.get_game_names()
+        game_view.game_list.set_txt_list(text=game_view.game_names)
+        game_view.game_list.index = game_view.item_index
+        game_view.game_list.refresh(force_refresh=True)
+        game_view.refresh_view()
 
 def refresh_helpers(): 
     cglobals.systems_view.gen_helper(is_active=False)
@@ -1094,6 +1144,119 @@ def get_disk_info():
         elif mount_point == cglobals.mount_point:
             disk_info = Disk(total,used,free)
     return disk_info
+
+def _read_first_line(path):
+    try:
+        with open(path, 'r', encoding='utf-8') as file:
+            return file.readline().replace('\x00', '').strip()
+    except Exception:
+        return ''
+
+def _read_os_release():
+    data = {}
+    for path in ('/etc/os-release', '/usr/lib/os-release'):
+        try:
+            with open(path, 'r', encoding='utf-8') as file:
+                for line in file:
+                    if '=' not in line:
+                        continue
+                    key, value = line.strip().split('=', 1)
+                    data[key] = value.strip().strip('"')
+            if data:
+                return data
+        except Exception:
+            pass
+    return data
+
+def get_lakka_system_version():
+    os_release = _read_os_release()
+    name = os_release.get('NAME') or 'Lakka'
+    version_id = os_release.get('VERSION_ID')
+    if version_id:
+        return name + ' ' + version_id
+    return os_release.get('PRETTY_NAME') or _read_first_line('/etc/release') or name
+
+def get_lakka_build_version():
+    os_release = _read_os_release()
+    return (
+        os_release.get('VERSION') or
+        os_release.get('BUILD_ID') or
+        _read_first_line('/etc/release') or
+        platform.release()
+    )
+
+def get_cpu_info():
+    CPU = namedtuple('cpu', 'max_freq min_freq current_freq revision')
+    try:
+        cpufreq = psutil.cpu_freq()
+        max_freq = f'{cpufreq.max:.0f}MHz' if cpufreq and cpufreq.max else 'N/A'
+        min_freq = f'{cpufreq.min:.0f}MHz' if cpufreq and cpufreq.min else 'N/A'
+        current_freq = f'{cpufreq.current:.0f}MHz' if cpufreq and cpufreq.current else 'N/A'
+    except Exception:
+        max_freq = 'N/A'
+        min_freq = 'N/A'
+        current_freq = 'N/A'
+    if current_freq == 'N/A':
+        khz = _read_first_line('/sys/devices/system/cpu/cpu0/cpufreq/scaling_cur_freq')
+        if khz.isdigit():
+            current_freq = f'{int(khz) / 1000:.0f}MHz'
+    revision = get_cpu_rev()
+    return CPU(max_freq,min_freq,current_freq,revision)
+
+def get_cpu_rev():
+    model = _read_first_line('/proc/device-tree/model')
+    if model:
+        return model.replace('Raspberry Pi ', 'RPi ')
+    try:
+        with open('/proc/cpuinfo', 'r', encoding='utf-8') as file:
+            for line in file:
+                if line.startswith('Revision'):
+                    return line.split(':', 1)[1].strip()
+                if line.startswith('Model'):
+                    return line.split(':', 1)[1].strip()
+    except Exception:
+        pass
+    return platform.machine()
+
+def get_sensor_info():
+    Sensor = namedtuple('sensor', 'temp')
+    temp = None
+    try:
+        sensors = psutil.sensors_temperatures()
+        for key in ('cpu_thermal', 'soc_thermal', 'thermal_zone0'):
+            if key in sensors and sensors[key]:
+                temp = sensors[key][0].current
+                break
+    except Exception:
+        pass
+    if temp is None:
+        raw_temp = _read_first_line('/sys/class/thermal/thermal_zone0/temp')
+        if raw_temp.isdigit():
+            temp = int(raw_temp) / 1000
+    temp = f'{temp:.1f}C' if temp is not None else 'N/A'
+    return Sensor(temp)
+
+def get_ram_info():
+    Mem = namedtuple('memory', 'total')
+    try:
+        mem = psutil.virtual_memory()
+        total = get_size(mem.total)
+    except Exception:
+        total = 'N/A'
+    return Mem(total)
+
+def get_disk_info():
+    Disk = namedtuple('disk', 'total used free')
+    for path in ('/storage', cglobals.mount_point, '/'):
+        try:
+            partition_usage = psutil.disk_usage(path)
+            total = get_size(partition_usage.total)
+            used = get_size(partition_usage.used)
+            free = get_size(partition_usage.free)
+            return Disk(total,used,free)
+        except Exception:
+            continue
+    return Disk('N/A','N/A','N/A')
 
 def check_boot_disk():
     if not cglobals.is_in_task:
@@ -1514,12 +1677,25 @@ def get_all_server_names():
 
 def get_ip_address(ifname):
     ip = '-'
-    if_addrs = psutil.net_if_addrs()
-    for interface_name, interface_addresses in if_addrs.items():
-        if interface_name == ifname:
-            for address in interface_addresses:
-                if str(address.family) == 'AddressFamily.AF_INET':
-                    ip = address.address
+    try:
+        p = subprocess.Popen('ip -4 -o addr show dev ' + ifname, stdout=subprocess.PIPE, shell=True)
+        (output, _err) = p.communicate(timeout=5)
+        p.wait()
+        parts = output.decode('utf-8', errors='ignore').split()
+        if 'inet' in parts:
+            ip = parts[parts.index('inet') + 1].split('/')[0]
+            return ip
+    except Exception:
+        pass
+    try:
+        if_addrs = psutil.net_if_addrs()
+        for interface_name, interface_addresses in if_addrs.items():
+            if interface_name == ifname:
+                for address in interface_addresses:
+                    if str(address.family) == 'AddressFamily.AF_INET':
+                        ip = address.address
+    except Exception:
+        pass
     return ip
 
 def get_net_status(type):
@@ -1539,6 +1715,35 @@ def get_net_status(type):
         else:
             cglobals.is_connecting = False
             return net
+
+def _connman_services():
+    services = []
+    try:
+        p = subprocess.Popen('connmanctl services', stdout=subprocess.PIPE, shell=True)
+        (output, _err) = p.communicate(timeout=10)
+        p.wait()
+        for raw_line in output.decode('utf-8', errors='ignore').splitlines():
+            line = raw_line.strip()
+            if not line or ' wifi_' not in line:
+                continue
+            flags = ''
+            while line and line[0] in '*AROT ':
+                if line[0] != ' ':
+                    flags += line[0]
+                line = line[1:].strip()
+            parts = line.rsplit(None, 1)
+            if len(parts) != 2 or not parts[1].startswith('wifi_'):
+                continue
+            services.append({'name': parts[0].strip(), 'service': parts[1].strip(), 'flags': flags})
+    except Exception as e:
+        rtk.logging.error('_connman_services: %s', e)
+    return services
+
+def get_active_wifi_ssid():
+    for service in _connman_services():
+        if 'A' in service.get('flags', '') or 'R' in service.get('flags', ''):
+            return service.get('name') or '-'
+    return '-'
 
 def enable_netplay():
     if cglobals.netplay_mode == 'server':
@@ -1663,32 +1868,34 @@ def set_wifi_config():
         rtk.logging.error('set_wifi_config (Lakka): %s', e)
 
 def wifi_connect():
-    """Lakka-port: no-op. ConnMan already manages wlan0; touching ifconfig
-    would drop SSH."""
+    """Lakka-port: ask ConnMan to connect using its existing service/config.
+    Never touch ifconfig/wpa_cli; that would drop SSH on Lakka."""
     cglobals.is_connecting = True
-    rtk.logging.info('wifi_connect: no-op (ConnMan handles wlan0)')
+    target = str(rtk.cfg_wifi_ssid).strip()
+    try:
+        service_id = ''
+        for service in _connman_services():
+            if service.get('name') == target:
+                service_id = service.get('service')
+                break
+        if service_id:
+            cmd('connmanctl connect ' + service_id + ' >/dev/null 2>&1; true')
+        else:
+            cmd('connmanctl scan wifi >/dev/null 2>&1; true')
+    except Exception as e:
+        rtk.logging.error('wifi_connect (ConnMan): %s', e)
 
 def wifi_disconnect():
-    """Lakka-port: no-op for the same reason as wifi_connect()."""
+    """Do not disconnect wlan0 from the FE; SSH may depend on it."""
     cglobals.is_connecting = False
-    rtk.logging.info('wifi_disconnect: no-op (would kill SSH)')
+    rtk.logging.info('wifi_disconnect: skipped to preserve Lakka/SSH network')
 
 def scan_wifi():
     """Lakka-port: query connmanctl instead of iw scan."""
     ssids = []
     try:
-        p = subprocess.Popen('connmanctl scan wifi >/dev/null; connmanctl services',
-                             stdout=subprocess.PIPE, shell=True)
-        (output, _err) = p.communicate(timeout=15)
-        p.wait()
-        for line in output.decode('utf-8', errors='ignore').split('\n'):
-            line = line.strip()
-            if not line or line.startswith('*'):
-                # connmanctl prefixes connected service with '*A'/'*R'; strip
-                line = line.lstrip('*ARO ').strip()
-            parts = line.split()
-            if parts and parts[0] != 'wifi_':
-                ssids.append(parts[0])
+        cmd('connmanctl scan wifi >/dev/null 2>&1; true')
+        ssids = [service.get('name') for service in _connman_services()]
     except Exception as e:
         rtk.logging.error('scan_wifi: %s', e)
     ssids = list(dict.fromkeys(s for s in ssids if s))
@@ -1992,6 +2199,8 @@ def get_system_index(system):
             add_index += 1
         if 'favorites' in cglobals.system_names_tate:
             add_index += 1
+        if 'recents' in cglobals.system_names_tate:
+            add_index += 1
         index = cglobals.system_names_tate.index(system)
         new_index = index - add_index
         rtk.logging.info('Getting system %s. Real index: %d, Virtual index: %d (%d)', system, index, new_index, add_index)
@@ -2000,6 +2209,8 @@ def get_system_index(system):
         if 'kodi' in cglobals.system_names:
             add_index += 1
         if 'favorites' in cglobals.system_names:
+            add_index += 1
+        if 'recents' in cglobals.system_names:
             add_index += 1
         index = cglobals.system_names.index(system)
         new_index = index - add_index
@@ -2032,6 +2243,8 @@ def get_system_full_names():
             name = '<lightgun> ' + rtk.get_translation(name)
         elif name == 'kodi':
             name = '<tv> ' + rtk.get_translation(name)
+        elif name == 'recents':
+            name = rtk.get_translation(name)
         names.append(name)
     return names
 
@@ -2059,6 +2272,80 @@ def get_system_info(index):
         release = cglobals.systems[index]["Release"]
         info = developer + ',' + release
     return info
+
+def _infer_recent_system(path, core_name, core_path):
+    text = (path + ' ' + core_name + ' ' + core_path).lower()
+    if 'mame' in text or 'fbneo' in text or 'finalburn' in text or '/arcade/' in text:
+        return 'arcade'
+    if 'flycast' in text or 'dreamcast' in text or '/dc/' in text:
+        return 'dreamcast'
+    if 'bsnes' in text or 'snes9x' in text or 'super nintendo' in text or '/snes/' in text:
+        return 'snes'
+    if 'genesis' in text or 'mega drive' in text:
+        if 'sg-1000' in text:
+            return 'sg1000'
+        if 'master system' in text:
+            return 'mastersystem'
+        if 'mega-cd' in text or 'sega cd' in text:
+            return 'segacd'
+        return 'megadrive'
+    if 'geolith' in text or 'neo geo' in text:
+        return 'neogeo'
+    if 'swanstation' in text or 'playstation' in text:
+        return 'psx'
+    return 'arcade'
+
+def _all_loaded_games():
+    games = []
+    for group in cglobals.games:
+        games.extend(group)
+    return games
+
+def load_recent_history(limit=25):
+    history_file = '/storage/playlists/builtin/content_history.lpl'
+    cglobals.recents = []
+    if not os.path.isfile(history_file):
+        return
+    try:
+        with open(history_file, encoding='utf-8') as file:
+            items = json.load(file).get('items', [])
+    except Exception as error:
+        rtk.logging.error('Error loading recents: %s', error)
+        return
+    all_games = _all_loaded_games()
+    by_path = {game.get('File', ''): game for game in all_games}
+    by_basename = {}
+    for game in all_games:
+        by_basename.setdefault(os.path.basename(game.get('File', '')).lower(), game)
+    seen = set()
+    for item in items:
+        path = item.get('path', '')
+        if not path or path in seen:
+            continue
+        seen.add(path)
+        game = by_path.get(path) or by_basename.get(os.path.basename(path).lower())
+        if game:
+            recent = game.copy()
+        elif os.path.isfile(path):
+            name = item.get('label') or os.path.splitext(os.path.basename(path))[0]
+            system = _infer_recent_system(path, item.get('core_name', ''), item.get('core_path', ''))
+            recent = {
+                'Id':'',
+                'Hash':'',
+                'System':system,
+                'Subsystem':system,
+                'File':path,
+                'Name':name,
+                'Genre':'',
+                'Developer':'?',
+                'Year':'?',
+                'Players':'?'
+            }
+        else:
+            continue
+        cglobals.recents.append(recent)
+        if len(cglobals.recents) >= limit:
+            break
 
 def gen_game_files(dats_path=None):
     try:
@@ -2095,11 +2382,17 @@ def get_games(system):
     if is_tate():
         if system == 'favorites':
             return get_favorites()
+        elif system == 'recents':
+            load_recent_history()
+            return cglobals.recents
         else:
             return cglobals.games_tate
     else:
         if system == 'favorites':
             return get_favorites()
+        elif system == 'recents':
+            load_recent_history()
+            return cglobals.recents
         else:
             system_index = get_system_index(system)
             return cglobals.games[system_index]
@@ -2230,6 +2523,35 @@ def update_sys_favs():
         if 'favorites' in cglobals.system_names:
             del cglobals.system_names[0]
             del cglobals.systems[0]
+
+def update_sys_recents():
+    system_recent = {'System':'recents','Name':'recents','Release':'Recent','Developer':'Lakka','Formats':'','Subsystems':''}
+    if rtk.cfg_show_recents == 'on':
+        if not is_tate():
+            if 'recents' not in cglobals.system_names:
+                index = 0
+                if 'favorites' in cglobals.system_names:
+                    index += 1
+                if 'kodi' in cglobals.system_names:
+                    index += 1
+                cglobals.system_names.insert(index,'recents')
+                cglobals.systems.insert(index,system_recent)
+        else:
+            if 'recents' not in cglobals.system_names_tate:
+                index = 0
+                if 'favorites' in cglobals.system_names_tate:
+                    index += 1
+                cglobals.system_names_tate.insert(index,'recents')
+                cglobals.systems_tate.insert(index,system_recent)
+    else:
+        if 'recents' in cglobals.system_names:
+            index = cglobals.system_names.index('recents')
+            del cglobals.system_names[index]
+            del cglobals.systems[index]
+        if 'recents' in cglobals.system_names_tate:
+            index = cglobals.system_names_tate.index('recents')
+            del cglobals.system_names_tate[index]
+            del cglobals.systems_tate[index]
 
 def gen_sys_kodi():
     if rtk.cfg_show_kodi == 'on':
@@ -2370,6 +2692,8 @@ def scan_from_ui_common():
     gen_sys_kodi()
     rtk.logging.info('Updating system favs...')
     update_sys_favs()
+    rtk.logging.info('Updating system recents...')
+    update_sys_recents()
     rtk.logging.info('Refreshing system view...')
     cglobals.systems_view.refresh_view()
     rtk.logging.info('Refreshing game views...')

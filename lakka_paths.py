@@ -25,7 +25,7 @@ path_rgbpi_fonts     = path_rgbpi + '/fonts'
 path_retroarch        = '/usr/bin/retroarch'
 path_retroarch_assets = '/tmp/assets'
 path_retroarch_fonts  = path_rgbpi_fonts            # frontend controls fonts
-path_cores            = '/tmp/cores'
+path_cores            = '/usr/lib/libretro'
 path_autoconfig       = '/tmp/joypads'
 
 # Lakka storage/roms convention

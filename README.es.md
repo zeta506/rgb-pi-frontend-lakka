@@ -141,4 +141,4 @@ el frontend Python.
 ## Licencia
 
 GPLv3, heredada del rgb-pi-frontend upstream. RGB-Pi OS es © Rubén Tomás
-(rtomasa); este port es © 2026 Pablo Bridge.
+(rtomasa); este port es © 2026 Pablo Puente.

@@ -58,6 +58,7 @@ systems = [] ############## [{system}, {}, ...]
 systems_tate = []
 games = [] ################ [games, games, ...] where games = tuple of system game rows, each row is dict
 games_tate = [] ########### [games, games, ...]
+recents = []
 favorites = []
 favorites_tate = []
 translations = [] ######### [{translation}, {}, ...]

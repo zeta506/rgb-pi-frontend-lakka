@@ -1,0 +1,15 @@
+[Unit]
+Description=RGB-Pi boot logo on framebuffer
+DefaultDependencies=no
+After=local-fs.target
+Before=rgbpi-frontend.service
+ConditionPathExists=/storage/rgbpi/images/boot_1.bmp
+
+[Service]
+Type=oneshot
+Environment=HOME=/storage
+Environment=PYTHONPATH=/storage/rgbpi:/storage/rgbpi/python-libs
+ExecStart=/usr/bin/python3 /storage/rgbpi/framebuffer_write.py -img /storage/rgbpi/images/boot_1.bmp
+
+[Install]
+WantedBy=multi-user.target

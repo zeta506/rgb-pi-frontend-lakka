@@ -159,7 +159,7 @@ class Vkeyb_View(object):
                 cglobals.event_mgr.submit_event('save_config')
                 utils.set_wifi_config()
                 utils.wifi_connect()
-                cglobals.sys_opt_network_view.set_ssid_name(name=str(rtk.cfg_wifi_ssid))
+                cglobals.sys_opt_network_view.set_ssid_name(name=utils.get_active_wifi_ssid())
                 cglobals.sys_opt_network_view.refresh_values()
                 cglobals.sys_opt_wifi_view.set_wifi_names()
                 cglobals.sys_opt_wifi_view.refresh_values()

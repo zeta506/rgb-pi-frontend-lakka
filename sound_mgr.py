@@ -207,6 +207,23 @@ class Sound_Manager(object):
                         eq_mixer.setvolume(int(percent))
             except Exception as e:
                 rtk.logging.debug('set_volume(%s,%s,%s) ignored: %s', percent, mixer, control, e)
+            # Lakka-port: pygame.mixer + amixer fallback so vol_up/down work
+            # even when the alsaaudio Mixer objects above couldn't bind.
+            if mixer == 'headphone':
+                try:
+                    pygame.mixer.music.set_volume(p)
+                except Exception:
+                    pass
+                try:
+                    for ch in range(pygame.mixer.get_num_channels()):
+                        pygame.mixer.Channel(ch).set_volume(p)
+                except Exception:
+                    pass
+                try:
+                    # ALSA card 1 = USB DAC on Lakka with nohdmi.
+                    utils.cmd('amixer -c 1 sset Speaker %d%% unmute >/dev/null 2>&1' % int(percent))
+                except Exception:
+                    pass
 
     def vol_down(self):
         if cglobals.has_audio:

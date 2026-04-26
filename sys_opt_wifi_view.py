@@ -220,12 +220,11 @@ class Sys_Opt_Wifi_View(object):
 
     def disconnect_wifi(self):
         rtk.cfg_wifi_pwd = '-'
-        rtk.cfg_wifi_ssid = '-'
+        rtk.cfg_wifi_ssid = utils.get_active_wifi_ssid()
         rtk.cfg_wifi = 'off'
         cglobals.event_mgr.submit_event('save_config')
-        utils.set_wifi_config()
         utils.wifi_disconnect()
-        cglobals.sys_opt_network_view.set_ssid_name(name=str(rtk.cfg_wifi_ssid))
+        cglobals.sys_opt_network_view.set_ssid_name(name=utils.get_active_wifi_ssid())
         cglobals.sys_opt_network_view.refresh_values()
         self.set_wifi_names()
         self.refresh_values()

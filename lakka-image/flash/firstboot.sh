@@ -18,6 +18,13 @@ SENTINEL=/flash/.first-run-done
 
 echo "[firstboot] running initial CRT/SSH provisioning..."
 
+if [ -f /flash/cmdline.txt ] && ! grep -qw nosplash /flash/cmdline.txt; then
+    mount -o remount,rw /flash 2>/dev/null || true
+    cp /flash/cmdline.txt /flash/cmdline.txt.before-rgbpi-nosplash 2>/dev/null || true
+    sed -i 's/$/ nosplash/' /flash/cmdline.txt
+    sync
+fi
+
 # -- SSH --
 mkdir -p /storage/.cache/services
 echo 'SSHD_START=true' > /storage/.cache/services/sshd.conf
@@ -60,7 +67,7 @@ mkdir -p "$RA_DIR"
 # switchres.ini (generic 15 kHz range — covers NTSC 240p/480i and PAL 240p/288p)
 cat > "$RA_DIR/switchres.ini" <<'INI'
 monitor   custom
-crt_range0  15625-15750, 49.50-65.00, 3.900, 4.700, 6.100, 0.064, 0.192, 1.024, 0, 0, 192, 288, 448, 576
+crt_range0  15625-15750, 49.50-65.00, 3.900, 4.700, 6.100, 0.064, 0.192, 1.024, 0, 0, 192, 288, 480, 576
 INI
 
 # Global RA tweaks — append only if not present already
@@ -75,19 +82,27 @@ for kv in \
     'crt_switch_vertical_adjust = "0"' \
     'video_scale_integer = "false"' \
     'video_smooth = "false"' \
-    'aspect_ratio_index = "23"' \
-    'video_aspect_ratio = "1.333333"' \
+    'aspect_ratio_index = "22"' \
     'video_aspect_ratio_auto = "false"' \
     'video_fullscreen = "true"' \
-    'video_fullscreen_x = "3840"' \
-    'video_fullscreen_y = "240"' \
+    'video_fullscreen_x = "0"' \
+    'video_fullscreen_y = "0"' \
     'video_viewport_bias_x = "0.500000"' \
     'video_viewport_bias_y = "0.500000"' \
-    'custom_viewport_width = "3840"' \
-    'custom_viewport_height = "240"' \
+    'custom_viewport_width = "0"' \
+    'custom_viewport_height = "0"' \
     'custom_viewport_x = "0"' \
     'custom_viewport_y = "0"' \
     'menu_driver = "rgui"' \
+    'joypad_autoconfig_dir = "/storage/rgbpi/data/joyconfig"' \
+    'input_driver = "udev"' \
+    'input_joypad_driver = "udev"' \
+    'all_users_control_menu = "true"' \
+    'assets_directory = "/storage/rgbpi/raassets"' \
+    'rgui_menu_color_theme = "16"' \
+    'menu_dynamic_wallpaper_enable = "false"' \
+    'rgui_menu_theme_preset = ""' \
+    'config_save_on_exit = "false"' \
     'rgui_aspect_ratio = "0"' \
     'rgui_aspect_ratio_lock = "0"' \
     'kms_connector = "DPI-1"'
@@ -100,14 +115,14 @@ do
     fi
 done
 
-# Per-core overrides tuned for superx-240p mode (3840x240)
+# Per-core overrides — let CRT switchres own the aspect (22 = core-provided
+# but with switchres' "Aspect ratio forced by user" override the running
+# DRM mode dimensions are used, so 240p games fill 3840x240 and 480i games
+# fill 3840x480 without the FE rewriting MAME.cfg per launch).
 mkdir -p "$RA_DIR/config/MAME"
 cat > "$RA_DIR/config/MAME/MAME.cfg" <<'CFG'
-aspect_ratio_index = "23"
-custom_viewport_width = "3840"
-custom_viewport_height = "240"
-custom_viewport_x = "0"
-custom_viewport_y = "0"
+aspect_ratio_index = "22"
+video_aspect_ratio_auto = "false"
 video_scale_integer = "false"
 CFG
 
@@ -125,7 +140,7 @@ if [ -d /flash/retrotink ]; then
         cp /flash/retrotink/SuperResolucion.ttf /storage/fonts/
         sed -i 's|^video_font_path = .*|video_font_path = "/storage/fonts/SuperResolucion.ttf"|' "$RA_CFG" 2>/dev/null || true
         grep -q '^video_font_path ' "$RA_CFG" || echo 'video_font_path = "/storage/fonts/SuperResolucion.ttf"' >> "$RA_CFG"
-        grep -q '^video_font_size ' "$RA_CFG" || echo 'video_font_size = "8.000000"' >> "$RA_CFG"
+        grep -q '^video_font_size ' "$RA_CFG" || echo 'video_font_size = "12.000000"' >> "$RA_CFG"
     fi
     # Per-core options (overscan OFF for most cores)
     if [ -f /flash/retrotink/core-options.cfg ]; then

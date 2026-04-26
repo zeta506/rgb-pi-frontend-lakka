@@ -53,8 +53,7 @@ class Sys_Opt_Sound_View(object):
             'system_sounds_vol',
             'system_music',
             'system_sounds',
-            'music_title',
-            'audio_jack'
+            'music_title'
         ]
         self.non_switches = ('equalizer','playlist','sel_playlist')
         self.option_list = rtk.RtkTextList(
@@ -80,8 +79,7 @@ class Sys_Opt_Sound_View(object):
             'system_sounds_vol':('0','10','20','30','40','50','60','70','80','90','100'),
             'system_music'     :('off','on'),
             'system_sounds'    :('off','on'),
-            'music_title'      :('off','on'),
-            'audio_jack'       :('off','on')
+            'music_title'      :('off','on')
         }
         self.value_list = rtk.RtkTextList(
             name         = 'sound_value_list',
@@ -274,10 +272,7 @@ class Sys_Opt_Sound_View(object):
     
     def __update_info(self):
         current_option = self.__get_current_option()
-        if current_option == 'audio_jack':
-            self.item_info.set_text(text='reboot_required')
-            self.item_info.set_position(position=('center',self.opt_info_y),is_tate=utils.is_tate())
-        elif current_option == 'system_vol' and int(rtk.cfg_system_vol) > 80:
+        if current_option == 'system_vol' and int(rtk.cfg_system_vol) > 80:
             self.item_info.set_text(text='warning_clipping')
             self.item_info.set_position(position=('center',self.opt_info_y),is_tate=utils.is_tate())
         else:
@@ -293,12 +288,6 @@ class Sys_Opt_Sound_View(object):
             cglobals.sound_mgr.set_menu_sounds_volume()
         elif current_option == 'system_music':
             cglobals.sound_mgr.play_bg_music()
-        elif current_option == 'audio_jack':
-            if rtk.cfg_audio_jack == 'on':
-                cglobals.event_mgr.submit_event('enable_audio_jack')
-            elif rtk.cfg_audio_jack == 'off':
-                cglobals.event_mgr.submit_event('disable_audio_jack')
-            rtk.notif_msg.display(text='reboot_required', l_icon='info')
             
     def activate(self):
         self.container_view.activate()

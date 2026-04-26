@@ -141,6 +141,7 @@ else:
     utils.load_roms()
     utils.gen_sys_kodi()
     utils.update_sys_favs()
+    utils.update_sys_recents()
     utils.load_music()
     utils.load_eq_presets()
     utils.load_themes()

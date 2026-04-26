@@ -49,6 +49,7 @@ class Sys_Opt_System_View(object):
             'theme|theme|elipsis',
             'list_mode',
             'show_kodi',
+            'show_recents',
             'retroarch_notif',
             'show_hotkey',
             'overclock',
@@ -58,8 +59,8 @@ class Sys_Opt_System_View(object):
             'reset|reset_config||' + str(rtk.opt_list_highlight_3)
         ]
         if rtk.cfg_adv_mode == 'user':
-            self.options.pop(7)
-            self.options.pop(8-1)
+            self.options.pop(8)
+            self.options.pop(8)
         self.non_switches = ('language','theme','scr_update','sys_update','reset_config')
         self.option_list = rtk.RtkTextList(
             name         = 'system_opt_list',
@@ -80,6 +81,7 @@ class Sys_Opt_System_View(object):
             'theme'          :(),
             'list_mode'      :('flat_list','folder_list'),
             'show_kodi'      :('off','on'),
+            'show_recents'   :('off','on'),
             'retroarch_notif':('off','on'),
             'show_hotkey'    :('off','on'),
             'overclock'      :('off','on'),
@@ -280,7 +282,7 @@ class Sys_Opt_System_View(object):
         elif current_option == 'retroarch_menu':
             self.item_info.set_text(text='dr_perf_inf')
             self.item_info.set_position(position=('center',self.opt_info_y),is_tate=utils.is_tate())
-        elif current_option == 'show_kodi':
+        elif current_option == 'show_kodi' or current_option == 'show_recents':
             self.item_info.set_text(text='reboot_required')
             self.item_info.set_position(position=('center',self.opt_info_y),is_tate=utils.is_tate())
         else:

@@ -18,10 +18,10 @@ import os
 # CRT type -> switchres.ini crt_range values
 # (hfreq_min-max, vfreq_min-max, hfp, hsync, hbp, vfp_lo, vsync, vbp_lo, hfp_hi, vfp_hi, line_min, line_240, line_480, line_576)
 CRT_RANGES = {
-    'generic_15': '15625-15750, 49.50-65.00, 3.900, 4.700, 6.100, 0.064, 0.192, 1.024, 0, 0, 192, 288, 448, 576',
+    'generic_15': '15625-15750, 49.50-65.00, 3.900, 4.700, 6.100, 0.064, 0.192, 1.024, 0, 0, 192, 288, 480, 576',
     'ntsc_15':    '15734-15734, 59.94-59.94, 3.900, 4.700, 6.100, 0.064, 0.192, 1.024, 0, 0, 192, 240, 480,   0',
     'pal_15':     '15625-15625, 50.00-50.00, 3.900, 4.700, 6.100, 0.064, 0.192, 1.024, 0, 0, 192, 288,   0, 576',
-    'arcade_15':  '15625-15750, 49.50-65.00, 3.900, 4.700, 6.100, 0.064, 0.192, 1.024, 0, 0, 192, 288, 448, 576',
+    'arcade_15':  '15625-15750, 49.50-65.00, 3.900, 4.700, 6.100, 0.064, 0.192, 1.024, 0, 0, 192, 288, 480, 576',
     'arcade_25':  '24960-25080, 49.50-65.00, 1.000, 3.500, 2.000, 0.064, 0.192, 1.024, 0, 0, 384, 400, 512, 0',
     'arcade_31':  '31400-31600, 49.50-65.00, 0.940, 3.770, 1.890, 0.349, 0.064, 1.017, 0, 0, 400, 480, 600, 0',
     'vga_31':     '31400-31600, 49.50-65.00, 0.940, 3.770, 1.890, 0.349, 0.064, 1.017, 0, 0, 400, 480, 600, 0',
@@ -47,7 +47,7 @@ def write_switchres_ini(path, crt_type='generic_15', super_width='3840'):
             pass
 
 def apply_crt_settings(config, cfg_crt_type, cfg_dynares, cfg_overscan,
-                       cfg_video_info, cfg_flicker_reduction):
+                       cfg_video_info, cfg_show_fps, cfg_flicker_reduction):
     """Append stock RA CRT switchres keys to config list (drop-in replacement
     for the RGB-Pi dynares_* block in launcher.make_common)."""
     super_w = SUPER_WIDTH.get(cfg_dynares, '3840')
@@ -64,18 +64,43 @@ def apply_crt_settings(config, cfg_crt_type, cfg_dynares, cfg_overscan,
     elif cfg_overscan == 'off':
         porch = '0'
     config.append('crt_switch_porch_adjust = "%s"\n' % porch)
-    # Flicker reduction -> BFI
+    # Flicker reduction (interlace 480i):
+    #   on  -> bilinear smoothing + motion-style blur shader so adjacent
+    #          fields blend visually on the CRT phosphor
+    #   off -> sharp pixels, raw scanlines
     if cfg_flicker_reduction == 'on':
-        config.append('video_black_frame_insertion = "1"\n')
-    else:
+        # Bilinear smoothing softens 480i scanline flicker on CRT phosphor
+        # without imposing a shader chain (cheap and works without filters/
+        # external glsl files). Pair with the CRT-interlace halation shader
+        # if installed; otherwise just rely on the bilinear filter.
+        config.append('video_smooth = "true"\n')
+        import os as _os
+        crt_int = '/tmp/shaders/GLSL-Shaders/crt/crt-interlaced-halation.glslp'
+        if _os.path.isfile(crt_int):
+            config.append('video_shader_enable = "true"\n')
+            config.append('video_shader = "%s"\n' % crt_int)
+        else:
+            config.append('video_shader_enable = "false"\n')
         config.append('video_black_frame_insertion = "0"\n')
-    # Video info overlay
-    if cfg_video_info == 'on':
-        config.append('video_fps_show = "true"\n')
-        config.append('video_statistics_show = "true"\n')
     else:
+        config.append('video_smooth = "false"\n')
+        config.append('video_shader_enable = "false"\n')
+        config.append('video_black_frame_insertion = "0"\n')
+    # FPS overlay is intentionally separate from Video Info. Video Info is
+    # reserved for resolution/switchres messages.
+    if cfg_show_fps == 'on':
+        config.append('fps_show = "true"\n')
+        config.append('video_fps_show = "true"\n')
+        config.append('statistics_show = "true"\n')
+        config.append('framecount_show = "false"\n')
+    else:
+        config.append('fps_show = "false"\n')
         config.append('video_fps_show = "false"\n')
-        config.append('video_statistics_show = "false"\n')
+        config.append('statistics_show = "false"\n')
+        config.append('framecount_show = "false"\n')
+    # Do not enable RetroArch's generic statistics block here: it shows FPS,
+    # frame time and driver stats, not the switchres resolution text we want.
+    config.append('video_statistics_show = "false"\n')
 
 def apply_dynares_mode(config, dynares_mode):
     """Replace dynares_mode= with stock aspect/viewport keys."""

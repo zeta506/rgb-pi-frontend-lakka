@@ -54,7 +54,7 @@ class Sys_Opt_Display_View(object):
             'force_arcade_60',
             'flicker_reduction',
             'lgun_color_rep',
-            'video_info',
+            'show_fps',
             'screensaver',
             'screensaver_time'
         ]
@@ -86,7 +86,7 @@ class Sys_Opt_Display_View(object):
             'force_arcade_60'  :('off','on'),
             'flicker_reduction':('off','on'),
             'lgun_color_rep'   :('off','on'),
-            'video_info'       :('off','on'),
+            'show_fps'         :('off','on'),
             'screensaver'      :('disabled','black_screen','flying_logo','slide_show'),
             'screensaver_time' :('1_min','3_min','5_min','10_min')
         }

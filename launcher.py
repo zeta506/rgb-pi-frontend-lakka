@@ -13,6 +13,9 @@ def apply_lakka_super_viewport(config):
     # Keep the appendconfig from perturbing SwitchRes/video geometry.
     pass
 
+def start_video_info_notifier():
+    return
+
 def make_common(system, game_path, config, is_global_nfs):
     # Video
     config.append('video_driver = "gl"\n')
@@ -31,7 +34,8 @@ def make_common(system, game_path, config, is_global_nfs):
         cfg_crt_type=rtk.cfg_crt_type,
         cfg_dynares=rtk.cfg_dynares,
         cfg_overscan=rtk.cfg_overscan,
-        cfg_video_info=rtk.cfg_video_info,
+        cfg_video_info='off',
+        cfg_show_fps=getattr(rtk, 'cfg_show_fps', 'off'),
         cfg_flicker_reduction=rtk.cfg_flicker_reduction)
     # Set Fake LGun Color Replacement
     if rtk.cfg_lgun_color_rep == 'on':
@@ -211,9 +215,19 @@ def make_common(system, game_path, config, is_global_nfs):
         config.append('log_to_file = "true"\n')
         config.append('log_to_file_timestamp = "true"\n')
     # RGUI
-    config.append('rgui_menu_color_theme = "Custom"\n')
-    config.append('rgui_menu_theme_preset = "' + rtk.path_retroarch_assets + '/themes/bw.cfg"\n')
-    config.append('rgui_border_filler_enable = "false"\n')
+    config.append('rgui_menu_color_theme = "0"\n')
+    config.append('rgui_menu_theme_preset = "' + rtk.path_retroarch_assets + '/rgui/RGBPi Brogrammer.cfg"\n')
+    config.append('rgui_entry_normal_color = "0xFF00FF66"\n')
+    config.append('rgui_entry_hover_color = "0xFFFFFFFF"\n')
+    config.append('rgui_title_color = "0xFFFFB000"\n')
+    config.append('rgui_bg_dark_color = "0xFF101010"\n')
+    config.append('rgui_bg_light_color = "0xFF202020"\n')
+    config.append('rgui_border_dark_color = "0xFFFF6600"\n')
+    config.append('rgui_border_light_color = "0xFFFFC000"\n')
+    config.append('rgui_wallpaper = ""\n')
+    config.append('menu_dynamic_wallpaper_enable = "false"\n')
+    config.append('rgui_border_filler_enable = "true"\n')
+    config.append('rgui_background_filler_thickness_enable = "true"\n')
     config.append('menu_rgui_shadows = "true"\n')
     config.append('menu_ticker_speed = "4"\n')
     config.append('menu_ticker_type = "Bounce Left/Right"\n')
@@ -225,17 +239,33 @@ def make_common(system, game_path, config, is_global_nfs):
         config.append('assets_directory = "' + theme_fx_path + '"\n')
     else:
         config.append('assets_directory = "' + rtk.path_retroarch_assets + '"\n')
-    # OSD & Notifications
-    if rtk.cfg_retroarch_notif == 'on':
+    # OSD & Notifications. Display > Show FPS controls FPS only.
+    if getattr(rtk, 'cfg_show_fps', 'off') == 'on':
         config.append('video_font_enable = "true"\n')
+        config.append('video_font_size = "12.000000"\n')
+        config.append('video_message_color = "00ffff"\n')
+        config.append('video_message_pos_x = "0.050000"\n')
+        config.append('video_message_pos_y = "0.050000"\n')
     else:
         config.append('video_font_enable = "false"\n')
-    config.append('fps_show = "false"\n')
-    config.append('video_message_color = "ffffff"\n')
-    config.append('video_message_pos_x = "0.06"\n')
-    config.append('video_message_pos_y = "0.08"\n')
+    if getattr(rtk, 'cfg_show_fps', 'off') == 'on':
+        config.append('fps_show = "true"\n')
+        config.append('video_fps_show = "true"\n')
+        config.append('statistics_show = "true"\n')
+        config.append('framecount_show = "false"\n')
+    else:
+        config.append('fps_show = "false"\n')
+        config.append('video_fps_show = "false"\n')
+        config.append('statistics_show = "false"\n')
+        config.append('framecount_show = "false"\n')
     config.append('notification_show_autoconfig = "false"\n')
     config.append('notification_show_remap_load = "false"\n')
+    config.append('notification_show_config_override_load = "false"\n')
+    config.append('notification_show_set_initial_disk = "false"\n')
+    config.append('notification_show_cheats_applied = "false"\n')
+    config.append('notification_show_refresh_rate = "false"\n')
+    config.append('network_cmd_enable = "true"\n')
+    config.append('network_cmd_port = "55355"\n')
     # Menu options
     config.append('menu_driver = "rgui"\n')
     config.append('menu_linear_filter = "true"\n')
@@ -389,11 +419,26 @@ def make_arcade_cfg_file(game_path, is_global_nfs):
         config.append('video_font_size = "12"\n')
     elif rtk.cfg_dynares == 'superx':
         apply_lakka_super_viewport(config)
-        config.append('video_font_path = "' + rtk.path_retroarch_fonts + '/SuperResolucion.ttf"\n')
+        # Pick the font that matches the active CRT mode height. Arcade can
+        # be 240p (most fbneo/mame) or 480i (Tekken/CPS3/etc); switchres
+        # decides per game so we pick the heavier font for safety.
+        if utils.is_game_480i(game_path):
+            config.append('aspect_ratio_index = "22"\n')
+            config.append('video_aspect_ratio_auto = "false"\n')
+            config.append('video_scale_integer = "false"\n')
+            config.append('video_fullscreen_x = "0"\n')
+            config.append('video_fullscreen_y = "0"\n')
+            config.append('custom_viewport_width = "0"\n')
+            config.append('custom_viewport_height = "0"\n')
+            config.append('custom_viewport_x = "0"\n')
+            config.append('custom_viewport_y = "0"\n')
+            config.append('video_font_path = "' + rtk.path_retroarch_fonts + '/SuperResolucion.ttf"\n')
+        else:
+            config.append('video_font_path = "' + rtk.path_retroarch_fonts + '/SuperResolucion.ttf"\n')
     elif rtk.cfg_dynares == 'native':
         config.append('aspect_ratio_index = "21"\n')
         config.append('video_scale_integer = "true"\n')
-        config.append('video_font_path = "' + rtk.path_retroarch_fonts + '/native.ttf"\n') 
+        config.append('video_font_path = "' + rtk.path_retroarch_fonts + '/native.ttf"\n')
     # By default emulators display TATE games left rotated to be played in 4/3 TV
     # The video_rotation angle is <value> * 90 degrees counter-clockwise
     if 'naomi' in game_path:
@@ -424,7 +469,19 @@ def make_console_cfg_file(system, is_global_nfs):
     # Video
     if rtk.cfg_dynares == 'superx':
         apply_lakka_super_viewport(config)
-        if(system == 'dreamcast' or system == 'naomi'):
+        if (system == 'dreamcast' or system == 'naomi'):
+            # Let Lakka CRT switchres use the active mode dimensions:
+            # 3840x240 for 240p and 3840x480 for 480i. A fixed 480-line
+            # viewport makes 240p content too tall.
+            config.append('aspect_ratio_index = "22"\n')
+            config.append('video_aspect_ratio_auto = "false"\n')
+            config.append('video_scale_integer = "false"\n')
+            config.append('video_fullscreen_x = "0"\n')
+            config.append('video_fullscreen_y = "0"\n')
+            config.append('custom_viewport_width = "0"\n')
+            config.append('custom_viewport_height = "0"\n')
+            config.append('custom_viewport_x = "0"\n')
+            config.append('custom_viewport_y = "0"\n')
             config.append('video_font_path = "' + rtk.path_retroarch_fonts + '/SuperResolucion.ttf"\n')
         else:
             config.append('video_font_path = "' + rtk.path_retroarch_fonts + '/SuperResolucion.ttf"\n')
@@ -511,6 +568,13 @@ def launch_content():
         cglobals.sound_mgr.pause_music()
         try:
             pygame.mixer.quit()
+        except Exception:
+            pass
+        # Lakka-port: black-screen the framebuffer before tearing down pygame
+        # so the user never sees a stale FE frame while the DRM mode flips.
+        try:
+            with open('/dev/fb0', 'wb', buffering=0) as _fb:
+                _fb.write(b'\x00' * (3840 * 480 * 4))
         except Exception:
             pass
         pygame.display.quit()
@@ -731,6 +795,7 @@ def launch_content():
                 launch_command = '"' + game_path +'"'
                 utils.cmd('chmod +x ' + launch_command)
             # Launch game
+            start_video_info_notifier()
             if system == 'scripts':
                 utils.cmd(launch_command, True)
             else:
@@ -743,6 +808,13 @@ def launch_content():
 
         ''' Restore nfs, keys, timing, launcher data '''
 
+        # Lakka-port: black-screen again after retroarch exits to hide the
+        # last game frame while pygame re-initialises and the FE redraws.
+        try:
+            with open('/dev/fb0', 'wb', buffering=0) as _fb:
+                _fb.write(b'\x00' * (3840 * 480 * 4))
+        except Exception:
+            pass
         # Pygame
         utils.set_sync()
         rtk.init_video()
@@ -777,6 +849,10 @@ def launch_content():
             cglobals.input_mgr.load_joy_btn_style()
         except Exception as error:
             rtk.logging.error('Error restoring FE controls: %s', error)
+        try:
+            utils.refresh_recents_view()
+        except Exception as error:
+            rtk.logging.error('Error refreshing recents: %s', error)
         # Restore EQ Preset
         if is_system_preset:
             cglobals.sound_mgr.set_preset(preset=eq_preset)

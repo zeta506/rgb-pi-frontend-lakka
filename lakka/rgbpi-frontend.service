@@ -11,9 +11,9 @@ Environment=PYTHONPATH=/storage/rgbpi:/storage/rgbpi/python-libs
 Environment=SDL_JOYSTICK_ALLOW_BACKGROUND_EVENTS=1
 Environment=SDL_GAMECONTROLLER_ALLOW_BACKGROUND_EVENTS=1
 WorkingDirectory=/storage/rgbpi
-ExecStartPre=/bin/sh -c 'cat /dev/zero > /dev/fb0 2>/dev/null; true'
+ExecStartPre=/bin/sh -c '/usr/bin/python3 /storage/rgbpi/framebuffer_write.py -img /storage/rgbpi/images/boot_1.bmp 2>/dev/null || cat /dev/zero > /dev/fb0 2>/dev/null; true'
 ExecStart=/usr/bin/python3 /storage/rgbpi/rgbpiui.py
-ExecStopPost=/bin/sh -c 'if [ -f /storage/.cache/rgbpi-return-to-lakka ]; then rm -f /storage/.cache/rgbpi-return-to-lakka; echo SSHD_START=true > /storage/.cache/services/sshd.conf; systemctl start sshd 2>/dev/null || true; systemctl disable rgbpi-frontend 2>/dev/null || true; systemctl enable retroarch 2>/dev/null || true; systemctl --no-block restart retroarch 2>/dev/null || true; fi'
+ExecStopPost=/bin/sh -c 'mkdir -p /storage/.cache/services; echo SSHD_START=true > /storage/.cache/services/sshd.conf; systemctl start sshd 2>/dev/null || true'
 Restart=on-failure
 RestartSec=3
 StandardOutput=journal

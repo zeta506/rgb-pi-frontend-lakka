@@ -138,4 +138,4 @@ and keep stock XMB if you don't want the Python frontend yet.
 ## License
 
 GPLv3, inherited from upstream rgb-pi-frontend. RGB-Pi OS itself is © Rubén
-Tomás (rtomasa); this port is © 2026 Pablo Bridge.
+Tomás (rtomasa); this port is © 2026 Pablo Puente.

@@ -67,7 +67,7 @@ class Sys_Opt_Network_View(object):
         # Value list
         self.values = {
             'config_wifi'   :(),
-            'wifi_ssid'     :utils.fit_text(text=str(rtk.cfg_wifi_ssid), mode='short_truncated'),
+            'wifi_ssid'     :utils.fit_text(text=utils.get_active_wifi_ssid(), mode='short_truncated'),
             'ethernet_ip'   :utils.get_net_status('ethernet'),
             'wifi_ip'       :utils.get_net_status('wifi')
         }
@@ -188,12 +188,16 @@ class Sys_Opt_Network_View(object):
     def set_ips(self):
         ethernet_status = utils.get_net_status('ethernet')
         wifi_status = utils.get_net_status('wifi')
+        wifi_ssid = utils.fit_text(text=utils.get_active_wifi_ssid(), mode='short_truncated')
         refresh = False
         if ethernet_status != self.values['ethernet_ip']:
             self.values['ethernet_ip'] = ethernet_status
             refresh = True
         if wifi_status != self.values['wifi_ip']:
             self.values['wifi_ip'] = wifi_status
+            refresh = True
+        if wifi_ssid != self.values['wifi_ssid']:
+            self.values['wifi_ssid'] = wifi_ssid
             refresh = True
         if refresh:
             self.refresh_values()

@@ -141,8 +141,8 @@ class Sys_Opt_Info_View(object):
             disk_info = utils.get_disk_info()
             stats = utils.get_stats()
             values = [
-                rtk.cfg_os_name+'/'+str(rtk.cfg_os_ver)+' (64 bits)',
-                'v'+str(rtk.cfg_os_int_ver)+' ('+str(rtk.cfg_os_date_ver)+')',
+                utils.get_lakka_system_version(),
+                utils.get_lakka_build_version(),
                 str(self.cpu_info.current_freq) + ' (' + str(self.cpu_info.revision) + ')',
                 str(self.ram_info.total),
                 str(sensor_info.temp),
@@ -157,8 +157,8 @@ class Sys_Opt_Info_View(object):
         except Exception as error:
             rtk.logging.error('Error reading info: %s', error)
             values = [
-                rtk.cfg_os_name+'/'+str(rtk.cfg_os_ver)+' (64 bits)',
-                'v'+str(rtk.cfg_os_int_ver)+' ('+str(rtk.cfg_os_date_ver)+')',
+                utils.get_lakka_system_version(),
+                utils.get_lakka_build_version(),
                 'Error',
                 'Error',
                 'Error',

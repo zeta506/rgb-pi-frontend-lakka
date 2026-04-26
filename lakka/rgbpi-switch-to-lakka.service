@@ -1,0 +1,9 @@
+[Unit]
+Description=Switch from RGB-Pi frontend to Lakka RetroArch
+After=basic.target
+
+[Service]
+Type=oneshot
+ExecStart=/storage/back-to-lakka.sh
+StandardOutput=journal
+StandardError=journal
